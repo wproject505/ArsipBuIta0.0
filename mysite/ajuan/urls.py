@@ -1,8 +1,10 @@
 from django.urls import path
-from . import views
+from .views import ajuan
+
 
 urlpatterns = [
-    path('', views.ajuan, name='home'),
+    path('', ajuan, name='home'),
+    # path('generate-pdf/', generate_pdf, name='generate-pdf'),
     # path('ajuantk', views.ajuan_tk, name='ajuantk'),
     # path('invoice', views.invoice, name='invoice'),
 ]
