@@ -14,7 +14,6 @@ class DanaMasukAdmin(admin.ModelAdmin):
     list_display = ('nama_dana_masuk', 'waktu_masuk', 'penanggung_jawab', 'total_dana')
 
 
-
 class BuktiKasKeluarAdmin(admin.ModelAdmin):
     search_fields = ('no_BKK', 'tanggal_BKK', 'dibayarkan_kepada', 'uraian', 'kode_bank', 'nomer_cek')
     list_display = ('no_BKK', 'tanggal_BKK', 'ajuan', 'dibayarkan_kepada', 'uraian', 'kode_bank', 'nomer_cek')
