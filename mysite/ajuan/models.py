@@ -1,8 +1,4 @@
 from django.db import models
-from django.utils import formats
-from django.db.models import Sum
-from datetime import datetime
-from babel.numbers import format_currency
 
 
 class UnitAjuan(models.Model):

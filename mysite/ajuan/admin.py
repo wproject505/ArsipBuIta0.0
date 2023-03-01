@@ -1,27 +1,13 @@
 from .models import *
-from django.contrib import admin
 from django.http import HttpResponse
-from reportlab.lib.pagesizes import letter, landscape
-from reportlab.lib import colors
-from reportlab.lib.units import inch
-from reportlab.pdfgen import canvas
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
-from .models import BuktiKasKeluar
-import locale
-import datetime
-
-from django.http import HttpResponse
-from django.urls import reverse
 from django.contrib import admin
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.lib import colors
-from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
 from .models import BuktiKasKeluar
 from babel.numbers import format_currency
 from decimal import Decimal
-from django.db.models import Sum
-from django.utils.html import format_html
+
 
 class BuktiKasKeluarAdmin(admin.ModelAdmin):
     list_display = ('no_BKK', 'tanggal_BKK', 'ajuan', 'dibayarkan_kepada', 'uraian', 'kode_bank', 'nomer_cek')
