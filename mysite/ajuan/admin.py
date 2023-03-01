@@ -12,6 +12,7 @@ from decimal import Decimal
 class BuktiKasKeluarAdmin(admin.ModelAdmin):
     list_display = ('no_BKK', 'tanggal_BKK', 'ajuan', 'dibayarkan_kepada', 'uraian', 'kode_bank', 'nomer_cek')
     actions = ["export_as_pdf"]
+    raw_id_fields = ['ajuan']
 
     def export_as_pdf(self, request, queryset):
         response = HttpResponse(content_type='application/pdf')
@@ -71,7 +72,7 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
 
 
 class AjuanAdmin(admin.ModelAdmin):
-    search_fields = ('unit_ajuan__unit_ajuan','nomor_pengajuan','nama_kegiatan','waktu_ajuan','total_ajuan','RAPT','RPC')
+    search_fields = ('nomor_pengajuan', 'nama_kegiatan', 'waktu_ajuan', 'total_ajuan')
     list_display = ['unit_ajuan','nomor_pengajuan','nama_kegiatan','waktu_ajuan','total_ajuan','RAPT','RPC']
     raw_id_fields = ["RAPT",
                      "RPC",
