@@ -9,7 +9,14 @@ from babel.numbers import format_currency
 from decimal import Decimal
 
 
+class DanaMasukAdmin(admin.ModelAdmin):
+    search_fields = ('nama_dana_masuk', 'waktu_masuk', 'penanggung_jawab', 'total_dana')
+    list_display = ('nama_dana_masuk', 'waktu_masuk', 'penanggung_jawab', 'total_dana')
+
+
+
 class BuktiKasKeluarAdmin(admin.ModelAdmin):
+    search_fields = ('no_BKK', 'tanggal_BKK', 'dibayarkan_kepada', 'uraian', 'kode_bank', 'nomer_cek')
     list_display = ('no_BKK', 'tanggal_BKK', 'ajuan', 'dibayarkan_kepada', 'uraian', 'kode_bank', 'nomer_cek')
     actions = ["export_as_pdf"]
     raw_id_fields = ['ajuan']
@@ -280,7 +287,7 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
 
 admin.site.register(UnitAjuan)
 admin.site.register(Ajuan, AjuanAdmin)
-admin.site.register(DanaMasuk)
+admin.site.register(DanaMasuk, DanaMasukAdmin)
 admin.site.register(BuktiKasKeluar, BuktiKasKeluarAdmin)
 admin.site.register(RekapPencairanCek, RekapPencairanCekAdmin)
 admin.site.register(RekapAjuanPengambilanTabungan, RekapAjuanPengambilanTabunganAdmin)
