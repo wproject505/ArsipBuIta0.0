@@ -7,18 +7,119 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
 from .models import BuktiKasKeluar
 from babel.numbers import format_currency
 from decimal import Decimal
+from reportlab.lib.pagesizes import letter
+from openpyxl import Workbook
 
 
 class DanaMasukAdmin(admin.ModelAdmin):
     search_fields = ('nama_dana_masuk', 'waktu_masuk', 'penanggung_jawab', 'total_dana')
     list_display = ('nama_dana_masuk', 'waktu_masuk', 'penanggung_jawab', 'total_dana')
+    actions = ["export_as_pdf", "export_to_excel"]
+
+    def export_to_excel(self, request, queryset):
+        # Query data dari model Dana Masuk
+        data = queryset.values()
+
+        # Buat file Excel dan tambahkan header
+        wb = Workbook()
+        ws = wb.active
+        ws.append(['nama_dana_masuk', 'waktu_masuk', 'penanggung_jawab', 'total_dana'])
+
+        # Tambahkan data ke file Excel
+        for item in data:
+            row = [item['nama_dana_masuk'], item['waktu_masuk'], item['penanggung_jawab'], item['total_dana']]
+            ws.append(row)
+
+        # Konversi file Excel ke HttpResponse
+        response = HttpResponse(content_type='application/vnd.ms-excel')
+        response['Content-Disposition'] = 'attachment; filename=Dana_Masuk.xlsx'
+        wb.save(response)
+
+        return response
+
+    export_to_excel.short_description = 'Export to Excel'
+
+    def export_as_pdf(self, request, queryset):
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="Dana_masuk.pdf"'
+
+        doc = SimpleDocTemplate(response, pagesize=landscape(letter))
+
+        data = []
+        data.append(['nama_dana_masuk', 'waktu_masuk', 'penanggung_jawab', 'total_dana'])
+        total = Decimal(0)
+        for dana_masuk in queryset:
+            total_ajuan = Decimal(dana_masuk.total_dana)
+            row = [
+                dana_masuk.nama_dana_masuk,
+                dana_masuk.waktu_masuk,
+                dana_masuk.penanggung_jawab,
+                dana_masuk.total_dana,
+            ]
+            data.append(row)
+
+            # Add total_ajuan to total
+            total += total_ajuan
+
+            # Add row for total_ajuan
+        data.append(['', '', '', '', '', 'Total', format_currency(total, 'IDR', locale='id_ID')])
+
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 14),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.aliceblue),
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 12),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+
+        elements = []
+        elements.append(table)
+        doc.build(elements)
+
+        return response
+
+    export_as_pdf.short_description = "Export selected as PDF"
 
 
 class BuktiKasKeluarAdmin(admin.ModelAdmin):
     search_fields = ('no_BKK', 'tanggal_BKK', 'dibayarkan_kepada', 'uraian', 'kode_bank', 'nomer_cek')
     list_display = ('no_BKK', 'tanggal_BKK', 'ajuan', 'dibayarkan_kepada', 'uraian', 'kode_bank', 'nomer_cek')
-    actions = ["export_as_pdf"]
+    actions = ["export_as_pdf","export_to_excel"]
     raw_id_fields = ['ajuan']
+
+
+    def export_to_excel(self, request, queryset):
+        # Query data dari model BuktiKasKeluar
+        data = queryset.values()
+
+        # Buat file Excel dan tambahkan header
+        wb = Workbook()
+        ws = wb.active
+        ws.append(['No BKK', 'Tanggal BKK', 'Ajuan', 'Dibayarkan Kepada', 'Uraian', 'Kode Bank', 'Nomor Cek'])
+
+        # Tambahkan data ke file Excel
+        for item in data:
+            row = [item['no_BKK'], item['tanggal_BKK'], item['ajuan_id'], item['dibayarkan_kepada'], item['uraian'],
+                   item['kode_bank'], item['nomer_cek']]
+            ws.append(row)
+
+        # Konversi file Excel ke HttpResponse
+        response = HttpResponse(content_type='application/vnd.ms-excel')
+        response['Content-Disposition'] = 'attachment; filename=BuktiKasKeluar.xlsx'
+        wb.save(response)
+
+        return response
+
+    export_to_excel.short_description = 'Export to Excel'
+
 
     def export_as_pdf(self, request, queryset):
         response = HttpResponse(content_type='application/pdf')
@@ -76,24 +177,37 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
     export_as_pdf.short_description = "Export selected as PDF"
 
 
-
 class AjuanAdmin(admin.ModelAdmin):
     search_fields = ('nomor_pengajuan', 'nama_kegiatan', 'waktu_ajuan', 'total_ajuan')
     list_display = ['unit_ajuan','nomor_pengajuan','nama_kegiatan','waktu_ajuan','total_ajuan','RAPT','RPC']
     raw_id_fields = ["RAPT",
                      "RPC",
                      ]
-    actions = ['export_as_pdf']
+    actions = ['export_as_pdf','export_to_excel']
 
-    # def get_queryset(self, request):
-    #     queryset = super().get_queryset(request)
-    #     total_ajuan_accumulated = queryset.aggregate(total_ajuan_accumulated=Sum('total_ajuan'))['total_ajuan_accumulated']
-    #     self.total_ajuan_accumulated = total_ajuan_accumulated or 0
-    #     return queryset
-    #
-    # def total_ajuan_accumulated(self, obj):
-    #     return format_html('<b>{}</b>', obj.total_ajuan_accumulated)
-    # total_ajuan_accumulated.short_description = 'Akumulasi Total Ajuan'
+    def export_to_excel(self, request, queryset):
+        # Query data dari model BuktiKasKeluar
+        data = queryset.values('unit_ajuan__unit_ajuan', 'nomor_pengajuan', 'nama_kegiatan', 'waktu_ajuan', 'total_ajuan', 'RAPT', 'RPC')
+
+        # Buat file Excel dan tambahkan header
+        wb = Workbook()
+        ws = wb.active
+        ws.append(['unit_ajuan__unit_ajuan','nomor_pengajuan','nama_kegiatan','waktu_ajuan','total_ajuan','RAPT','RPC'])
+
+        # Tambahkan data ke file Excel
+        for item in data:
+            row = [item['unit_ajuan__unit_ajuan'], item['nomor_pengajuan'], item['nama_kegiatan'], item['waktu_ajuan'], item['total_ajuan'],
+                   item['RAPT'], item['RPC']]
+            ws.append(row)
+
+        # Konversi file Excel ke HttpResponse
+        response = HttpResponse(content_type='application/vnd.ms-excel')
+        response['Content-Disposition'] = 'attachment; filename=Ajuan.xlsx'
+        wb.save(response)
+
+        return response
+
+    export_to_excel.short_description = 'Export to Excel'
 
 
     def export_as_pdf(self, request, queryset):
@@ -167,7 +281,53 @@ class RekapAjuanPengambilanTabunganAdmin(admin.ModelAdmin):
         (None, {'fields': ['jumlah']}),
     ]
 
-    actions = ['export_as_pdf']
+    actions = ["export_as_pdf", "export_to_excel"]
+
+    def export_to_excel(self, request, queryset):
+        # Query data dari model Dana Masuk
+        data = queryset.values()
+
+        # Buat file Excel dan tambahkan header
+        wb = Workbook()
+        ws = wb.active
+        ws.append(['no_RAPT', 'jumlah'])
+
+        # Tambahkan data ke file Excel
+        for item in data:
+            row = [item['no_RAPT'], item['jumlah']]
+            ws.append(row)
+
+        # Konversi file Excel ke HttpResponse
+        response = HttpResponse(content_type='application/vnd.ms-excel')
+        response['Content-Disposition'] = 'attachment; filename=RAPT.xlsx'
+        wb.save(response)
+
+        return response
+
+    export_to_excel.short_description = 'Export to Excel'
+
+    def export_to_excel(self, request, queryset):
+        # Query data dari model Dana Masuk
+        data = queryset.values()
+
+        # Buat file Excel dan tambahkan header
+        wb = Workbook()
+        ws = wb.active
+        ws.append(['no_RAPT', 'jumlah'])
+
+        # Tambahkan data ke file Excel
+        for item in data:
+            row = [item['no_RAPT'], item['jumlah']]
+            ws.append(row)
+
+        # Konversi file Excel ke HttpResponse
+        response = HttpResponse(content_type='application/vnd.ms-excel')
+        response['Content-Disposition'] = 'attachment; filename=RAPT.xlsx'
+        wb.save(response)
+
+        return response
+
+    export_to_excel.short_description = 'Export to Excel'
 
     def export_as_pdf(self, request, queryset):
         response = HttpResponse(content_type='application/pdf')
@@ -234,6 +394,30 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
     ]
 
     actions = ['export_as_pdf']
+
+
+    def export_to_excel(self, request, queryset):
+        # Query data dari model Dana Masuk
+        data = queryset.values()
+
+        # Buat file Excel dan tambahkan header
+        wb = Workbook()
+        ws = wb.active
+        ws.append(['no_RPC', 'jumlah'])
+
+        # Tambahkan data ke file Excel
+        for item in data:
+            row = [item['no_RPC'], item['jumlah']]
+            ws.append(row)
+
+        # Konversi file Excel ke HttpResponse
+        response = HttpResponse(content_type='application/vnd.ms-excel')
+        response['Content-Disposition'] = 'attachment; filename=RPC.xlsx'
+        wb.save(response)
+
+        return response
+
+    export_to_excel.short_description = 'Export to Excel'
 
     def export_as_pdf(self, request, queryset):
         response = HttpResponse(content_type='application/pdf')
