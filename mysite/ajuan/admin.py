@@ -1,9 +1,11 @@
+import babel
+from reportlab.lib.styles import getSampleStyleSheet
 from .models import *
 from django.http import HttpResponse
 from django.contrib import admin
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Spacer, Paragraph
 from .models import BuktiKasKeluar
 from babel.numbers import format_currency
 from decimal import Decimal
@@ -13,7 +15,7 @@ from openpyxl import Workbook
 
 class DanaMasukAdmin(admin.ModelAdmin):
     search_fields = ('nama_dana_masuk', 'waktu_masuk', 'penanggung_jawab', 'total_dana')
-    list_display = ('nama_dana_masuk', 'waktu_masuk', 'penanggung_jawab', 'total_dana')
+    list_display = ('nama_dana_masuk', 'waktu_masuk', 'penanggung_jawab', 'get_total_dana')
     actions = ["export_as_pdf", "export_to_excel"]
 
     def export_to_excel(self, request, queryset):
@@ -44,9 +46,10 @@ class DanaMasukAdmin(admin.ModelAdmin):
         response['Content-Disposition'] = 'attachment; filename="Dana_masuk.pdf"'
 
         doc = SimpleDocTemplate(response, pagesize=landscape(letter))
-
+        styles = getSampleStyleSheet()
+        title_style = styles['Title']
         data = []
-        data.append(['nama_dana_masuk', 'waktu_masuk', 'penanggung_jawab', 'total_dana'])
+        data.append(['Nama Dana Masuk', 'Waktu Masuk', 'Penanggung Jawab', 'Total Dana'])
         total = Decimal(0)
         for dana_masuk in queryset:
             total_ajuan = Decimal(dana_masuk.total_dana)
@@ -62,7 +65,7 @@ class DanaMasukAdmin(admin.ModelAdmin):
             total += total_ajuan
 
             # Add row for total_ajuan
-        data.append(['', '', '', '', '', 'Total', format_currency(total, 'IDR', locale='id_ID')])
+        data.append(['', '', 'Total', format_currency(total, 'IDR', locale='id_ID')])
 
         table = Table(data)
         table.setStyle(TableStyle([
@@ -79,8 +82,9 @@ class DanaMasukAdmin(admin.ModelAdmin):
             ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ]))
-
+        table_title = '<strong>Dana Masuk</strong>'
         elements = []
+        elements.append(Paragraph(table_title, title_style))
         elements.append(table)
         doc.build(elements)
 
@@ -88,12 +92,21 @@ class DanaMasukAdmin(admin.ModelAdmin):
 
     export_as_pdf.short_description = "Export selected as PDF"
 
+    def get_total_dana(self, obj):
+        return babel.numbers.format_currency(obj.total_dana, 'IDR', locale='id_ID')
+    get_total_dana.short_description = 'Total Dana'
+
 
 class BuktiKasKeluarAdmin(admin.ModelAdmin):
     search_fields = ('no_BKK', 'tanggal_BKK', 'dibayarkan_kepada', 'uraian', 'kode_bank', 'nomer_cek')
-    list_display = ('no_BKK', 'tanggal_BKK', 'ajuan', 'dibayarkan_kepada', 'uraian', 'kode_bank', 'nomer_cek')
+    list_display = ('no_BKK', 'tanggal_BKK', 'ajuan','get_total_ajuan', 'dibayarkan_kepada', 'uraian', 'kode_bank', 'nomer_cek')
     actions = ["export_as_pdf","export_to_excel"]
     raw_id_fields = ['ajuan']
+
+    def get_total_ajuan(self, obj):
+        total_ajuan = obj.ajuan.total_ajuan
+        return babel.numbers.format_currency(total_ajuan, 'IDR', locale='id_ID')
+    get_total_ajuan.short_description = 'Total Ajuan'
 
 
     def export_to_excel(self, request, queryset):
@@ -179,11 +192,15 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
 
 class AjuanAdmin(admin.ModelAdmin):
     search_fields = ('nomor_pengajuan', 'nama_kegiatan', 'waktu_ajuan', 'total_ajuan')
-    list_display = ['unit_ajuan','nomor_pengajuan','nama_kegiatan','waktu_ajuan','total_ajuan','RAPT','RPC']
+    list_display = ['unit_ajuan','nomor_pengajuan','nama_kegiatan','waktu_ajuan','get_total_ajuan','RAPT','RPC']
     raw_id_fields = ["RAPT",
                      "RPC",
                      ]
     actions = ['export_as_pdf','export_to_excel']
+
+    def get_total_ajuan(self, obj):
+        return babel.numbers.format_currency(obj.total_ajuan, 'IDR', locale='id_ID')
+    get_total_ajuan.short_description = 'Total Ajuan'
 
     def export_to_excel(self, request, queryset):
         # Query data dari model BuktiKasKeluar
@@ -273,7 +290,7 @@ class AjuanInLineRAPT(admin.TabularInline):
 
 class RekapAjuanPengambilanTabunganAdmin(admin.ModelAdmin):
     search_fields = ('no_RAPT', 'jumlah')
-    list_display = ('no_RAPT', 'jumlah')
+    list_display = ('no_RAPT', 'get_jumlah')
     inlines = [AjuanInLineRAPT]
 
     fieldsets = [
@@ -282,6 +299,10 @@ class RekapAjuanPengambilanTabunganAdmin(admin.ModelAdmin):
     ]
 
     actions = ["export_as_pdf", "export_to_excel"]
+
+    def get_jumlah(self, obj):
+        return babel.numbers.format_currency(obj.jumlah, 'IDR', locale='id_ID')
+    get_jumlah.short_description = 'Jumlah'
 
     def export_to_excel(self, request, queryset):
         # Query data dari model Dana Masuk
@@ -385,7 +406,7 @@ class AjuanInLineRPC(admin.TabularInline):
 
 class RekapPencairanCekAdmin(admin.ModelAdmin):
     search_fields = ('no_RPC', 'jumlah')
-    list_display = ('no_RPC', 'jumlah')
+    list_display = ('no_RPC', 'get_jumlah')
     inlines = [AjuanInLineRPC]
 
     fieldsets = [
@@ -394,6 +415,10 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
     ]
 
     actions = ['export_as_pdf']
+
+    def get_jumlah(self, obj):
+        return babel.numbers.format_currency(obj.jumlah, 'IDR', locale='id_ID')
+    get_jumlah.short_description = 'Jumlah'
 
 
     def export_to_excel(self, request, queryset):

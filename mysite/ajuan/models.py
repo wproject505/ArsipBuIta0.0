@@ -64,11 +64,6 @@ class RekapPencairanCek(models.Model):
         super().save(*args, **kwargs)
 
 
-from django.utils import timezone
-
-from django.utils import timezone
-
-
 class Ajuan(models.Model):
     unit_ajuan = models.ForeignKey(UnitAjuan, null=True, on_delete=models.SET_NULL)
     nomor_pengajuan = models.CharField(max_length=50, unique=True, null=True, blank=True, help_text="nomor pengajuan akan terisi otomatis")
