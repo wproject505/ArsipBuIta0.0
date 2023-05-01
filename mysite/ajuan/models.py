@@ -1,5 +1,8 @@
 from django.db import models
-from pyexpat import model
+from django.db.models import Sum
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+
 
 
 class UnitAjuan(models.Model):
@@ -32,7 +35,7 @@ class DanaMasuk(models.Model):
 
 
 class RekapAjuanPengambilanTabungan(models.Model):
-    no_RAPT = models.CharField(max_length=20, null=True, blank=True, unique=True)
+    no_RAPT = models.CharField(max_length=20, null=True, blank=True)
     jumlah = models.DecimalField(max_digits=50, decimal_places=0, null=True, blank=True)
 
     def __str__(self):
@@ -57,10 +60,10 @@ class RekapAjuanPengambilanTabungan(models.Model):
 
 
 
-from django.db.models import Sum
+
 
 class RekapPencairanCek(models.Model):
-    no_RPC = models.CharField(max_length=20, null=True, blank=True, unique=True)
+    no_RPC = models.CharField(max_length=20, null=True, blank=True)
     jumlah = models.DecimalField(max_digits=50, decimal_places=0, null=True, blank=True)
 
     def __str__(self):
@@ -84,15 +87,12 @@ class RekapPencairanCek(models.Model):
 
 class Ajuan(models.Model):
     unit_ajuan = models.ForeignKey(UnitAjuan, null=True, on_delete=models.SET_NULL)
-    # nomer_bank_tertarik = models.ForeignKey(BankTertarik, null=True, on_delete=models.SET_NULL)
-    nomor_pengajuan = models.CharField(max_length=50,  null=True, blank=True, unique=True, help_text="nomor pengajuan akan terisi otomatis")
+    nomor_pengajuan = models.CharField(max_length=50,  null=True, blank=True, help_text="nomor pengajuan akan terisi otomatis")
     nama_kegiatan = models.CharField(null=False, blank=True, max_length=50)
     waktu_ajuan = models.DateField(blank=True, null=True)
     penanggung_jawab = models.CharField(null=True, blank=True, max_length=30)
     total_ajuan = models.DecimalField(max_digits=20, blank=False, null=False, decimal_places=0)
     RAPT = models.ForeignKey(RekapAjuanPengambilanTabungan, null=True, blank=True, on_delete=models.SET_NULL)
-    # RPC = models.ForeignKey(RekapPencairanCek, null=True, blank=True, on_delete=models.SET_NULL)
-    # no_cek = models.ForeignKey(Cek, null=True, blank=True, on_delete=models.SET_NULL)
 
     def __str__(self):
         return self.nomor_pengajuan
@@ -100,74 +100,33 @@ class Ajuan(models.Model):
     class Meta:
         verbose_name_plural = 'Ajuan'
 
-    def save(self, *args, **kwargs):
-        if not self.nomor_pengajuan:
-            last_id = Ajuan.objects.all().order_by('-pk').first()
-            unit_ajuan = self.unit_ajuan.unit_ajuan
-            if last_id:
-                nomor_pengajuan = f'{unit_ajuan}{str(last_id.pk + 1).zfill(5)}'
-            else:
 
-                nomor_pengajuan = f'{unit_ajuan}00001'
-            self.nomor_pengajuan = nomor_pengajuan
-
-
-        if self.RAPT:
-            total_ajuan = Ajuan.objects.filter(RAPT=self.RAPT).aggregate(total=Sum('total_ajuan'))['total']
-            self.RAPT.jumlah = total_ajuan or 0  # default value is 0 if total_ajuan is None
-            self.RAPT.save()
-
-        # if self.RPC:
-        #     total_ajuan = Ajuan.objects.filter(RPC=self.RPC).aggregate(total=Sum('total_ajuan'))['total']
-        #     self.RPC.jumlah = total_ajuan or 0  # default value is 0 if total_ajuan is None
-        #     self.RPC.save()
-
-
-        super(Ajuan, self).save(*args, **kwargs)
+# @receiver(post_save, sender=Ajuan)
+# def create_rapt(sender, instance, created, **kwargs):
+#     if created:
+#         rapt = RekapAjuanPengambilanTabungan.objects.create(
+#             no_RAPT=instance.nomor_pengajuan,
+#             jumlah=instance.total_ajuan,
+#         )
+#         instance.RAPT = rapt
+#         instance.save()
 
 class Cek(models.Model):
-    no_cek  = models.CharField(max_length=50, null=True, unique=True )
+    no_cek  = models.CharField(max_length=50, null=True,)
     keterangan = models.CharField(max_length=50, null=True, )
     nomer_bank_tertarik = models.ForeignKey(BankTertarik, null=True, on_delete=models.SET_NULL)
     ajuan = models.ForeignKey(Ajuan, null=True, blank=True, on_delete=models.SET_NULL)
+    total_ajuan = models.DecimalField(max_digits=20, blank=False, null=False, decimal_places=0)
     RPC = models.ForeignKey(RekapPencairanCek, null=True, blank=True, on_delete=models.SET_NULL)
+
+
+
     def __str__(self):
         return self.no_cek
 
     class Meta:
         verbose_name_plural = 'Cek'
 
-    # @property
-    # def total_ajuan(self):
-    #     if hasattr(self, 'ajuan') and hasattr(self.ajuan, 'total_ajuan'):
-    #         return self.ajuan.total_ajuan
-    #     else:
-    #         return '-'
-
-    # @property
-    # def nama_kegiatan(self):
-    #     if hasattr(self, 'ajuan') and hasattr(self.ajuan, 'nama_kegiatan'):
-    #         return self.ajuan.nama_kegiatan
-    #     else:
-    #         return '-'
-
-
-    # def save(self, *args, **kwargs):
-    #     if not self.RPC:
-    #         # jika objek RekapPencairanCek belum ada, buat objek baru
-    #         rpc = RekapPencairanCek.objects.create()
-    #     else:
-    #         # jika objek RekapPencairanCek sudah ada, gunakan objek yang sudah ada
-    #         rpc = self.RPC
-    #
-    #     # update jumlah di objek RekapPencairanCek
-    #     rpc.jumlah = rpc.jumlah + self.total_ajuan
-    #
-    #     # simpan objek RekapPencairanCek
-    #     rpc.save()
-    #
-    #     # simpan objek Cek
-    #     super().save(*args, **kwargs)
 
 
 
@@ -177,7 +136,7 @@ class BuktiKasKeluar(models.Model):
     ajuan = models.ForeignKey(Ajuan, null=True, blank=True, on_delete=models.SET_NULL)
     dibayarkan_kepada = models.CharField(null=False, max_length=20)
     uraian = models.CharField(null=False, max_length=50)
-    kode_bank = models.ForeignKey(BankTertarik, null=True, blank=True, on_delete=models.SET_NULL)
+    nomer_bank_tertarik = models.ForeignKey(BankTertarik, null=True, on_delete=models.SET_NULL)
     nomer_cek = models.ForeignKey(Cek, null=True, blank=True, on_delete=models.SET_NULL)
     def __str__(self):
         return self.no_BKK

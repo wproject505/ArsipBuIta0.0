@@ -17,6 +17,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
+from openpyxl.styles import Alignment
 
 styles = getSampleStyleSheet()
 
@@ -113,9 +114,9 @@ class DanaMasukAdmin(admin.ModelAdmin):
 
 
 class BuktiKasKeluarAdmin(admin.ModelAdmin):
-    search_fields = ('no_BKK', 'tanggal_BKK','ajuan__nomor_pengajuan', 'dibayarkan_kepada', 'uraian', 'kode_bank', 'nomer_cek')
-    list_display = ('no_BKK', 'tanggal_BKK', 'ajuan','get_total_ajuan', 'dibayarkan_kepada', 'uraian', 'kode_bank', 'nomer_cek')
-    actions = ["export_as_pdf_global","export_to_excel"]
+    search_fields = ('no_BKK', 'tanggal_BKK','ajuan__nomor_pengajuan', 'dibayarkan_kepada', 'uraian', 'nomer_bank_tertarik', 'nomer_cek')
+    list_display = ('no_BKK', 'tanggal_BKK', 'ajuan','get_total_ajuan', 'dibayarkan_kepada', 'uraian', 'nomer_bank_tertarik', 'nomer_cek')
+    actions = ["export_as_pdf_global","export_to_excel","export_to_pdf_satuan"]
     raw_id_fields = ['ajuan', 'nomer_cek']
 
     def get_total_ajuan(self, obj):
@@ -125,18 +126,22 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
 
     def export_to_excel(self, request, queryset):
         # Query data dari model BuktiKasKeluar
-        data = queryset.values()
+        data = queryset.values('no_BKK', 'tanggal_BKK', 'ajuan_id', 'dibayarkan_kepada', 'uraian',
+                               'nomer_bank_tertarik', 'nomer_cek')
 
         # Buat file Excel dan tambahkan header
         wb = Workbook()
         ws = wb.active
-        ws.append(['No BKK', 'Tanggal BKK', 'Ajuan', 'Dibayarkan Kepada', 'Uraian', 'Kode Bank', 'Nomor Cek'])
+        ws.append(['No.', 'No BKK', 'Tanggal BKK', 'Ajuan', 'Dibayarkan Kepada', 'Uraian', 'Nomer Bank Tertarik',
+                   'Nomor Cek'])
+        row_num = 1
 
         # Tambahkan data ke file Excel
         for item in data:
-            row = [item['no_BKK'], item['tanggal_BKK'], item['ajuan_id'], item['dibayarkan_kepada'], item['uraian'],
-                   item['kode_bank'], item['nomer_cek']]
+            row = [row_num, item['no_BKK'], item['tanggal_BKK'], item['ajuan_id'], item['dibayarkan_kepada'],
+                   item['uraian'], item['nomer_bank_tertarik'], item['nomer_cek']]
             ws.append(row)
+            row_num += 1
 
         # Konversi file Excel ke HttpResponse
         response = HttpResponse(content_type='application/vnd.ms-excel')
@@ -147,10 +152,42 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
 
     export_to_excel.short_description = 'Export to Excel'
 
+    def export_to_pdf_satuan(self, request, queryset):
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="BKK Satuan.pdf"'
+
+        doc = SimpleDocTemplate(response, pagesize=landscape(A5))
+        elements = []
+        data = []
+        data.append(['Yayasan\nPendidikan', 'Bukti Kas Keluar\n_____________', 'Nomer BKK:\nTanggal:'])
+        table = Table(data, colWidths=[150, 250, 150,])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.blue),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (1, 1), (1, -2), 'LEFT'),  # Set "NAMA KEGIATAN" in the second row to align left
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.aliceblue),
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('WORDWRAP', (1, 0), (-1, -1), 100),
+        ]))
+        elements.append(table)
+        doc.build(elements)
+
+        return response
+
+    export_to_pdf_satuan.short_description = "Export selected as PDF satuan"
+
 
     def export_as_pdf_global(self, request, queryset):
         response = HttpResponse(content_type='application/pdf')
-        response['Content-Disposition'] = 'attachment; filename="bukti_kas_keluar.pdf"'
+        response['Content-Disposition'] = 'attachment; filename="BKK Global.pdf"'
 
         doc = SimpleDocTemplate(response, pagesize=landscape(letter))
         elements = []
@@ -170,7 +207,7 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
                 bukti_kas_keluar.tanggal_BKK,
                 bukti_kas_keluar.dibayarkan_kepada,
                 bukti_kas_keluar.uraian,
-                bukti_kas_keluar.kode_bank,
+                bukti_kas_keluar.nomer_bank_tertarik,
                 bukti_kas_keluar.nomer_cek,
                 format_currency(total_ajuan, 'IDR', locale='id_ID'),
             ]
@@ -222,18 +259,29 @@ class AjuanAdmin(admin.ModelAdmin):
 
     def export_to_excel(self, request, queryset):
         # Query data dari model BuktiKasKeluar
-        data = queryset.values('unit_ajuan__unit_ajuan', 'nomor_pengajuan', 'nama_kegiatan', 'waktu_ajuan', 'total_ajuan', 'RAPT', 'RPC')
+        data = queryset.values('unit_ajuan__unit_ajuan', 'nomor_pengajuan', 'nama_kegiatan', 'waktu_ajuan', 'total_ajuan', 'RAPT')
 
         # Buat file Excel dan tambahkan header
         wb = Workbook()
         ws = wb.active
-        ws.append(['unit_ajuan__unit_ajuan','nomor_pengajuan','nama_kegiatan','waktu_ajuan','total_ajuan','RAPT','RPC'])
+        ws.append(['No.','Unit Ajuan','Nomor Pengajuan','Nama Kegiatan','Waktu Ajuan','Total Ajuan','RAPT'])
+        # set rata tengah pada header
+        header_row = ws[1]
+        for cell in header_row:
+            cell.alignment = Alignment(horizontal='center')
 
+        row_num = 1
         # Tambahkan data ke file Excel
         for item in data:
-            row = [item['unit_ajuan__unit_ajuan'], item['nomor_pengajuan'], item['nama_kegiatan'], item['waktu_ajuan'], item['total_ajuan'],
-                   item['RAPT'], item['RPC']]
+            row = [row_num, item['unit_ajuan__unit_ajuan'], item['nomor_pengajuan'], item['nama_kegiatan'], item['waktu_ajuan'], item['total_ajuan'],
+                   item['RAPT']]
             ws.append(row)
+            row_num += 1
+
+            # Menyesuaikan lebar kolom secara otomatis
+            for column_cells in ws.columns:
+                length = max(len(str(cell.value)) for cell in column_cells)
+                ws.column_dimensions[column_cells[0].column_letter].width = length
 
         # Konversi file Excel ke HttpResponse
         response = HttpResponse(content_type='application/vnd.ms-excel')
@@ -317,7 +365,7 @@ class AjuanInLineRAPT(admin.TabularInline):
 class RekapAjuanPengambilanTabunganAdmin(admin.ModelAdmin):
     search_fields = ('no_RAPT', 'jumlah')
     list_display = ('no_RAPT', 'get_jumlah','get_nomor_pengajuan','get_total_ajuan')
-    readonly_fields = ('no_RAPT',)
+    readonly_fields = ('no_RAPT','jumlah',)
     inlines = [AjuanInLineRAPT]
 
     def get_nomor_pengajuan(self, obj):
@@ -341,11 +389,6 @@ class RekapAjuanPengambilanTabunganAdmin(admin.ModelAdmin):
             return '-'
 
     get_total_ajuan.short_description = 'total_ajuan'
-
-    fieldsets = [
-        (None, {'fields': ['no_RAPT']}),
-        (None, {'fields': ['jumlah']}),
-    ]
 
     actions = ["export_as_pdf", "export_to_excel"]
 
@@ -677,6 +720,6 @@ admin.site.register(BuktiKasKeluar, BuktiKasKeluarAdmin)
 admin.site.register(RekapPencairanCek, RekapPencairanCekAdmin)
 admin.site.register(RekapAjuanPengambilanTabungan, RekapAjuanPengambilanTabunganAdmin)
 admin.site.register(Cek, CekAdmin)
-admin.site.site_header = 'Dashboard Sistem Ajuan'
-admin.site.site_title = 'Sistem Ajuan'
+admin.site.site_header = 'Sistem Ajuan Rahmany'
+admin.site.site_title = 'Selamat Datang di Sistem Ajuan'
 admin.site.index_title = 'Selamat datang di Dashboard Sistem Ajuan'
