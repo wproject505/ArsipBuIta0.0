@@ -18,6 +18,9 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 from openpyxl.styles import Alignment
+from terbilang import Terbilang
+
+
 
 styles = getSampleStyleSheet()
 
@@ -157,15 +160,77 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
         response['Content-Disposition'] = 'attachment; filename="BKK Satuan.pdf"'
 
         doc = SimpleDocTemplate(response, pagesize=landscape(A5))
+        queryset = queryset.values('no_BKK', 'tanggal_BKK', 'ajuan__total_ajuan', 'dibayarkan_kepada', 'uraian',
+                               'nomer_bank_tertarik__nomer_bank_tertarik', 'nomer_cek__no_cek', )
         elements = []
-        data = []
-        data.append(['Yayasan\nPendidikan', 'Bukti Kas Keluar\n_____________', 'Nomer BKK:\nTanggal:'])
-        table = Table(data, colWidths=[150, 250, 150,])
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.blue),
+        data_0 = []
+        for data_q in queryset:
+            BKK_title = 'BUKTI KAS KELUAR'
+            data_0.append(['Yayasan\nPendidikan\nRAHMANY', '\n {}\n_________________'.format(BKK_title),
+                         'Nomer BKK: {}\nTanggal: {}'.format(data_q['no_BKK'], data_q['tanggal_BKK'])])
+        table_0 = Table(data_0, colWidths=[150, 250, 150, ])
+        table_0.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('TOPPADDING', (0, 0), (-1, 0), 5),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 5),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.aliceblue),
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+        elements.append(table_0)
+        data_1 = []
+        for data_q in queryset:
+            total_ajuan_str = str(data_q['ajuan__total_ajuan'])
+            t = Terbilang()
+            t.parse(total_ajuan_str)
+            t_gr = t.getresult()
+            t_gr_string_title = t_gr.title() + ' Rupiah'
+            # BKK_title = 'BUKTI KAS KELUAR'
+            #
+            # data_1.append(['Yayasan\nPendidikan\nRAHMANY', '\n {}\n_________________'.format(BKK_title),
+            #              'Nomer BKK: {}\nTanggal: {}'.format(data_q['no_BKK'], data_q['tanggal_BKK'])])
+            data_1.append(['Perkiraan', 'Uraian', 'Jumlah'])
+            data_1.append(['Dibayarkan Kepada:\n {}'.format(data_q['dibayarkan_kepada']), data_q['uraian'],
+                         format_currency(data_q['ajuan__total_ajuan'], 'IDR', locale='id_ID') if data_q[
+                             'ajuan__total_ajuan'] else ''])
+            data_1.append(['', '', ''])
+            data_1.append(['', '', ''])
+            data_1.append(['', '', ''])
+            data_1.append(['Terbilang', '{}'.format(t_gr_string_title), ''])
+        table_1 = Table(data_1, colWidths=[150, 250, 150,])
+        table_1.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('TOPPADDING', (0, 0), (-1, 0), 5),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 5),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.aliceblue),
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+        elements.append(table_1)
+        data_2 = []
+        for data_q_2 in queryset:
+            nomer_bank_tertarik = data_q_2['nomer_bank_tertarik__nomer_bank_tertarik']
+            nomer_cek = data_q_2['nomer_cek__no_cek']
+            data_2.append(['Nomer Bank Tertarik: {}'.format(nomer_bank_tertarik),'Nomer Cek: {}'.format(nomer_cek)])
+        table_2 = Table(data_2, colWidths=[275, 275])
+        table_2.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('ALIGN', (1, 1), (1, -2), 'LEFT'),  # Set "NAMA KEGIATAN" in the second row to align left
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 10),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
@@ -175,9 +240,30 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
             ('FONTSIZE', (0, 1), (-1, -1), 9),
             ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('WORDWRAP', (1, 0), (-1, -1), 100),
         ]))
-        elements.append(table)
+        elements.append(table_2)
+        tanda_tangan = [['', '', '']]
+        label_ttd = ['Pemberi', '                    ', 'Mengetahui', '                    ', 'Penerima']
+        data_ttd = ['(____________)', '                    ', '(____________)', '                    ',
+                    '(____________)']
+        tanda_tangan.append(label_ttd)
+        tanda_tangan.append('')
+        tanda_tangan.append(data_ttd)
+        table_ttd = Table(tanda_tangan)
+        table_ttd.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.white),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 14),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 12),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+        ]))
+        elements.append(table_ttd)
         doc.build(elements)
 
         return response

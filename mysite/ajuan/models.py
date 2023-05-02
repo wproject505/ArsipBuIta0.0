@@ -149,7 +149,7 @@ class BuktiKasKeluar(models.Model):
         if last_id:
             id_num = str(last_id.pk + 1).zfill(4)
         else:
-            id_num = '0000'
+            id_num = '00001'
         self.no_BKK = f'BK{id_num}'
 
         no_BKK = f'BKK{id_num}'
