@@ -95,21 +95,38 @@ class Ajuan(models.Model):
     RAPT = models.ForeignKey(RekapAjuanPengambilanTabungan, null=True, blank=True, on_delete=models.SET_NULL)
 
     def __str__(self):
-        return self.nomor_pengajuan
+        if self.nomor_pengajuan:
+            return self.nomor_pengajuan
+        return str(self.id)  # mengembalikan id sebagai fallback
+
 
     class Meta:
         verbose_name_plural = 'Ajuan'
 
 
-# @receiver(post_save, sender=Ajuan)
-# def create_rapt(sender, instance, created, **kwargs):
-#     if created:
-#         rapt = RekapAjuanPengambilanTabungan.objects.create(
-#             no_RAPT=instance.nomor_pengajuan,
-#             jumlah=instance.total_ajuan,
-#         )
-#         instance.RAPT = rapt
-#         instance.save()
+    def save(self, *args, **kwargs):
+        if not self.nomor_pengajuan:
+            last_id = Ajuan.objects.all().order_by('-pk').first()
+            if last_id:
+                id_num = str(last_id.pk + 1).zfill(4)
+            else:
+                id_num = '0001'
+            unit_ajuan = self.unit_ajuan.unit_ajuan
+            nomor_pengajuan = f'{unit_ajuan}{id_num}'
+            count = 1
+            while Ajuan.objects.filter(nomor_pengajuan=nomor_pengajuan).exists():
+                count += 1
+                nomor_pengajuan = f'{unit_ajuan}{id_num}({count})'
+            self.nomor_pengajuan = nomor_pengajuan
+
+
+        if self.RAPT:
+            total_ajuan = Ajuan.objects.filter(RAPT=self.RAPT).aggregate(total=Sum('total_ajuan'))['total']
+            self.RAPT.jumlah = total_ajuan or 0  # default value is 0 if total_ajuan is None
+            self.RAPT.save()
+
+
+        super(Ajuan, self).save(*args, **kwargs)
 
 class Cek(models.Model):
     no_cek  = models.CharField(max_length=50, null=True,)
