@@ -38,7 +38,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'terbilang',
 #     #mysite app
 #     'BKK.apps.BkkConfig',
 #     'DM.apps.DmConfig',
