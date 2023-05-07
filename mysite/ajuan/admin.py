@@ -1,6 +1,5 @@
 import babel
 from .models import *
-from django.http import HttpResponse
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Spacer, Paragraph
 from .models import BuktiKasKeluar
 from babel.numbers import format_currency
@@ -26,7 +25,7 @@ styles = getSampleStyleSheet()
 
 
 class DanaMasukAdmin(admin.ModelAdmin):
-    search_fields = ('nama_dana_masuk', 'waktu_masuk', 'penanggung_jawab', 'total_dana')
+    search_fields = ['nama_dana_masuk', 'waktu_masuk', 'penanggung_jawab', 'total_dana']
     list_display = ('nama_dana_masuk', 'waktu_masuk', 'penanggung_jawab', 'get_total_dana')
     actions = ["export_as_pdf", "export_to_excel"]
 
@@ -117,7 +116,9 @@ class DanaMasukAdmin(admin.ModelAdmin):
 
 
 class BuktiKasKeluarAdmin(admin.ModelAdmin):
-    search_fields = ('no_BKK', 'tanggal_BKK','ajuan__nomor_pengajuan', 'dibayarkan_kepada', 'uraian', 'nomer_bank_tertarik', 'nomer_cek')
+    readonly_fields = ['no_BKK', ]
+    fields = ['no_BKK', 'tanggal_BKK', 'ajuan', 'dibayarkan_kepada', 'uraian', 'nomer_bank_tertarik', 'nomer_cek']
+    search_fields = ['no_BKK','ajuan__nomor_pengajuan', 'tanggal_BKK', 'dibayarkan_kepada', 'uraian','nomer_bank_tertarik__nomer_bank_tertarik','nomer_cek__no_cek']
     list_display = ('no_BKK', 'tanggal_BKK', 'ajuan','get_total_ajuan', 'dibayarkan_kepada', 'uraian', 'nomer_bank_tertarik', 'nomer_cek')
     actions = ["export_as_pdf_global","export_to_excel","export_to_pdf_satuan"]
     raw_id_fields = ['ajuan', 'nomer_cek']
@@ -159,15 +160,29 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
         response = HttpResponse(content_type='application/pdf')
         response['Content-Disposition'] = 'attachment; filename="BKK Satuan.pdf"'
 
-        doc = SimpleDocTemplate(response, pagesize=landscape(A5))
+        doc = SimpleDocTemplate(response, pagesize=landscape(A4))
         queryset = queryset.values('no_BKK', 'tanggal_BKK', 'ajuan__total_ajuan', 'dibayarkan_kepada', 'uraian',
                                'nomer_bank_tertarik__nomer_bank_tertarik', 'nomer_cek__no_cek', )
         elements = []
-        data_0 = []
-        for data_q in queryset:
+        for data in queryset:
+            data_0 = []
             BKK_title = 'BUKTI KAS KELUAR'
             data_0.append(['Yayasan\nPendidikan\nRAHMANY', '\n {}\n_________________'.format(BKK_title),
-                         'Nomer BKK: {}\nTanggal: {}'.format(data_q['no_BKK'], data_q['tanggal_BKK'])])
+                         'Nomer BKK: {}\nTanggal: {}'.format(data['no_BKK'], data['tanggal_BKK'])])
+
+            data_0.append(['Perkiraan', 'Uraian', 'Jumlah'])
+            data_0.append(['Dibayarkan Kepada:\n {}'.format(data['dibayarkan_kepada']), data['uraian'],
+                           format_currency(data['ajuan__total_ajuan'], 'IDR', locale='id_ID') if data[
+                               'ajuan__total_ajuan'] else ''])
+            data_0.append(['', '', ''])
+            data_0.append(['', '', ''])
+            data_0.append(['', '', ''])
+            total_ajuan_str = str(data['ajuan__total_ajuan'])
+            t = Terbilang()
+            t.parse(total_ajuan_str)
+            t_gr = t.getresult()
+            t_gr_string_title = t_gr.title() + ' Rupiah'
+            data_0.append(['Terbilang', '{}'.format(t_gr_string_title), ''])
         table_0 = Table(data_0, colWidths=[150, 250, 150, ])
         table_0.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
@@ -185,47 +200,10 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ]))
         elements.append(table_0)
-        data_1 = []
-        for data_q in queryset:
-            total_ajuan_str = str(data_q['ajuan__total_ajuan'])
-            t = Terbilang()
-            t.parse(total_ajuan_str)
-            t_gr = t.getresult()
-            t_gr_string_title = t_gr.title() + ' Rupiah'
-            # BKK_title = 'BUKTI KAS KELUAR'
-            #
-            # data_1.append(['Yayasan\nPendidikan\nRAHMANY', '\n {}\n_________________'.format(BKK_title),
-            #              'Nomer BKK: {}\nTanggal: {}'.format(data_q['no_BKK'], data_q['tanggal_BKK'])])
-            data_1.append(['Perkiraan', 'Uraian', 'Jumlah'])
-            data_1.append(['Dibayarkan Kepada:\n {}'.format(data_q['dibayarkan_kepada']), data_q['uraian'],
-                         format_currency(data_q['ajuan__total_ajuan'], 'IDR', locale='id_ID') if data_q[
-                             'ajuan__total_ajuan'] else ''])
-            data_1.append(['', '', ''])
-            data_1.append(['', '', ''])
-            data_1.append(['', '', ''])
-            data_1.append(['Terbilang', '{}'.format(t_gr_string_title), ''])
-        table_1 = Table(data_1, colWidths=[150, 250, 150,])
-        table_1.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-            ('TOPPADDING', (0, 0), (-1, 0), 5),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 5),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.aliceblue),
-            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ]))
-        elements.append(table_1)
         data_2 = []
-        for data_q_2 in queryset:
-            nomer_bank_tertarik = data_q_2['nomer_bank_tertarik__nomer_bank_tertarik']
-            nomer_cek = data_q_2['nomer_cek__no_cek']
-            data_2.append(['Nomer Bank Tertarik: {}'.format(nomer_bank_tertarik),'Nomer Cek: {}'.format(nomer_cek)])
+        nomer_bank_tertarik = data['nomer_bank_tertarik__nomer_bank_tertarik']
+        nomer_cek = data['nomer_cek__no_cek']
+        data_2.append(['Nomer Bank Tertarik: {}'.format(nomer_bank_tertarik),'Nomer Cek: {}'.format(nomer_cek)])
         table_2 = Table(data_2, colWidths=[275, 275])
         table_2.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
@@ -242,25 +220,21 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ]))
         elements.append(table_2)
-        tanda_tangan = [['', '', '']]
-        label_ttd = ['Pemberi', '                    ', 'Mengetahui', '                    ', 'Penerima']
-        data_ttd = ['(____________)', '                    ', '(____________)', '                    ',
-                    '(____________)']
+        tanda_tangan = []
+        label_ttd = ['Pemberi \n \n \n____________', 'Mengetahui \n \n \n____________', 'Penerima \n \n \n____________']
         tanda_tangan.append(label_ttd)
-        tanda_tangan.append('')
-        tanda_tangan.append(data_ttd)
-        table_ttd = Table(tanda_tangan)
+        table_ttd = Table(tanda_tangan, colWidths = [175, 200, 175 ])
         table_ttd.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.white),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 14),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.aliceblue),
             ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 12),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
             ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
         ]))
         elements.append(table_ttd)
@@ -332,10 +306,10 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
 
 class AjuanAdmin(admin.ModelAdmin):
     search_fields = ('nomor_pengajuan', 'nama_kegiatan', 'waktu_ajuan', 'total_ajuan')
-    list_display = ['unit_ajuan','nomor_pengajuan',  'nama_kegiatan', 'waktu_ajuan', 'total_ajuan', 'penanggung_jawab', 'RAPT',  ]
+    list_display = ['unit_ajuan','nomor_pengajuan',  'nama_kegiatan', 'waktu_ajuan', 'get_total_ajuan', 'penanggung_jawab', 'RAPT',  ]
     fields = ['unit_ajuan','nomor_pengajuan',  'nama_kegiatan', 'waktu_ajuan', 'total_ajuan', 'penanggung_jawab', 'RAPT',  ]
     readonly_fields = ['nomor_pengajuan', ]
-    raw_id_fields = ["RAPT",]
+    raw_id_fields = ['RAPT',]
     actions = ['export_as_pdf','export_to_excel']
 
 
@@ -577,9 +551,9 @@ class RekapAjuanPengambilanTabunganAdmin(admin.ModelAdmin):
 
 from django.http import HttpResponse
 class CekAdmin(admin.ModelAdmin):
-    raw_id_fields = ['ajuan', 'RPC', ]
-    search_fields = ('ajuan', 'RPC',)
-    list_display = ('ajuan', 'RPC',)
+    raw_id_fields = ('ajuan', 'RPC',)
+    search_fields = ('no_cek','keterangan','nomer_bank_tertarik__nomer_bank_tertarik','ajuan__nomor_pengajuan','RPC__no_RPC',)
+    list_display = ('no_cek','keterangan','nomer_bank_tertarik','ajuan', 'RPC',)
     actions = ["export_as_pdf"]
 
     def export_as_pdf(self, request, queryset):
@@ -651,6 +625,20 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
     inlines = [CekInLineRPC]
     list_display = ('no_RPC', 'jumlah', 'nomer_bank_tertarik', 'get_total_ajuan', 'get_nama_kegiatan')
 
+    actions = ['export_as_pdf', 'update_jumlah_RPC']
+
+    def get_jumlah(self, obj):
+        return babel.numbers.format_currency(obj.jumlah, 'IDR', locale='id_ID')
+    get_jumlah.short_description = 'Jumlah'
+    def update_jumlah_RPC(self, request, queryset):
+        for obj in queryset:
+            total_ajuan = sum(cek.ajuan.total_ajuan for cek in obj.cek_set.all() if cek.ajuan)
+            obj.jumlah = total_ajuan
+            obj.save(update_fields=['jumlah'])
+        self.message_user(request, f'Successfully updated {queryset.count()} Rekap Pencairan Cek(s).')
+
+    update_jumlah_RPC.short_description = 'Update Jumlah RPC'
+
     def get_total_ajuan(self, obj):
         total_ajuan_list = []
         for cek in obj.cek_set.all():
@@ -692,7 +680,7 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
         obj.jumlah = total_ajuan
         super().save_model(request, obj, form, change)
 
-    actions = ['export_as_pdf']
+
 
     def save_model(self, request, obj, form, change):
         if obj.pk:
@@ -700,7 +688,6 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
             obj.jumlah = total_ajuan
         super().save_model(request, obj, form, change)
 
-    actions = ['export_as_pdf']
 
 
     def export_as_pdf(self, request, queryset):

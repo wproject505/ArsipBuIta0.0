@@ -1,8 +1,5 @@
 from django.db import models
 from django.db.models import Sum
-from django.db.models.signals import post_save, post_delete
-from django.dispatch import receiver
-
 
 
 class UnitAjuan(models.Model):
@@ -26,7 +23,6 @@ class DanaMasuk(models.Model):
     waktu_masuk = models.DateField(null=True)
     penanggung_jawab = models.CharField(null=True, max_length=30)
     total_dana = models.DecimalField(max_digits=20, decimal_places=0)
-    # nomor_RAPT = models.ForeignKey(RekapAjuanPengambilanTabungan, null=True, blank=True, on_delete=models.SET_NULL)
     def __str__(self):
         return self.nama_dana_masuk
 
@@ -59,9 +55,6 @@ class RekapAjuanPengambilanTabungan(models.Model):
         super().save(*args, **kwargs)
 
 
-
-
-
 class RekapPencairanCek(models.Model):
     no_RPC = models.CharField(max_length=20, null=True, blank=True)
     jumlah = models.DecimalField(max_digits=50, decimal_places=0, null=True, blank=True)
@@ -84,7 +77,6 @@ class RekapPencairanCek(models.Model):
         super().save(*args, **kwargs)
 
 
-
 class Ajuan(models.Model):
     unit_ajuan = models.ForeignKey(UnitAjuan, null=True, on_delete=models.SET_NULL)
     nomor_pengajuan = models.CharField(max_length=50,  null=True, blank=True, help_text="nomor pengajuan akan terisi otomatis")
@@ -93,6 +85,7 @@ class Ajuan(models.Model):
     penanggung_jawab = models.CharField(null=True, blank=True, max_length=30)
     total_ajuan = models.DecimalField(max_digits=20, blank=False, null=False, decimal_places=0)
     RAPT = models.ForeignKey(RekapAjuanPengambilanTabungan, null=True, blank=True, on_delete=models.SET_NULL)
+
 
     def __str__(self):
         if self.nomor_pengajuan:
@@ -133,9 +126,7 @@ class Cek(models.Model):
     keterangan = models.CharField(max_length=50, null=True, )
     nomer_bank_tertarik = models.ForeignKey(BankTertarik, null=True, on_delete=models.SET_NULL)
     ajuan = models.ForeignKey(Ajuan, null=True, blank=True, on_delete=models.SET_NULL)
-    total_ajuan = models.DecimalField(max_digits=20, blank=False, null=False, decimal_places=0)
     RPC = models.ForeignKey(RekapPencairanCek, null=True, blank=True, on_delete=models.SET_NULL)
-
 
 
     def __str__(self):
@@ -143,8 +134,6 @@ class Cek(models.Model):
 
     class Meta:
         verbose_name_plural = 'Cek'
-
-
 
 
 class BuktiKasKeluar(models.Model):
