@@ -3,7 +3,7 @@ from django.db.models import Sum
 
 
 class UnitAjuan(models.Model):
-    unit_ajuan = models.CharField(null=False, max_length=10)
+    unit_ajuan = models.CharField(null=False, max_length=30)
     def __str__(self):
         return self.unit_ajuan
     class Meta:
