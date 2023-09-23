@@ -1,5 +1,6 @@
 from django.db import models
 from django.db.models import Sum
+from django.db.models.signals import pre_save
 
 
 class UnitAjuan(models.Model):
@@ -19,12 +20,12 @@ class BankTertarik(models.Model):
         verbose_name_plural = 'Bank Tertarik'
 
 class DanaMasuk(models.Model):
-    nama_dana_masuk = models.CharField(null=False, max_length=50)
     waktu_masuk = models.DateField(null=True)
-    penanggung_jawab = models.CharField(null=True, max_length=30)
+    uraian = models.CharField(null=False, max_length=50)
+    bank_penerima = models.ForeignKey(BankTertarik, blank=True, null=True,on_delete=models.SET_NULL)
     total_dana = models.DecimalField(max_digits=20, decimal_places=0)
     def __str__(self):
-        return self.nama_dana_masuk
+        return self.uraian
 
     class Meta:
         verbose_name_plural = 'Dana Masuk'
@@ -46,7 +47,7 @@ class RekapAjuanPengambilanTabungan(models.Model):
             if last_id:
                 no_RAPT = f'RAPT{str(last_id.pk + 1).zfill(5)}'
             else:
-                no_RAPT = 'RAPT00001'
+                no_RAPT = 'RAPT0001'
             self.no_RAPT = no_RAPT
 
         total_ajuan = Ajuan.objects.filter(RAPT=self).aggregate(total=Sum('total_ajuan'))['total']
@@ -80,11 +81,13 @@ class RekapPencairanCek(models.Model):
 class Ajuan(models.Model):
     unit_ajuan = models.ForeignKey(UnitAjuan, null=True, on_delete=models.SET_NULL)
     nomor_pengajuan = models.CharField(max_length=50,  null=True, blank=True, help_text="nomor pengajuan akan terisi otomatis")
-    nama_kegiatan = models.CharField(null=False, blank=True, max_length=50)
+    nama_kegiatan = models.TextField(null=True, blank=True)
     waktu_ajuan = models.DateField(blank=True, null=True)
     penanggung_jawab = models.CharField(null=True, blank=True, max_length=30)
-    total_ajuan = models.DecimalField(max_digits=20, blank=False, null=False, decimal_places=0)
+    total_ajuan = models.DecimalField(max_digits=20, blank=False, null=True, decimal_places=0)
     RAPT = models.ForeignKey(RekapAjuanPengambilanTabungan, null=True, blank=True, on_delete=models.SET_NULL)
+    # Field status untuk menandai apakah Ajuan sudah dipilih atau belum
+    is_selected = models.BooleanField(default=False)
 
 
     def __str__(self):
@@ -121,13 +124,17 @@ class Ajuan(models.Model):
 
         super(Ajuan, self).save(*args, **kwargs)
 
-class Cek(models.Model):
-    no_cek  = models.CharField(max_length=50, null=True,)
-    keterangan = models.CharField(max_length=50, null=True, )
-    nomer_bank_tertarik = models.ForeignKey(BankTertarik, null=True, on_delete=models.SET_NULL)
-    ajuan = models.ForeignKey(Ajuan, null=True, blank=True, on_delete=models.SET_NULL)
-    RPC = models.ForeignKey(RekapPencairanCek, null=True, blank=True, on_delete=models.SET_NULL)
 
+from django.db.models.signals import m2m_changed
+from django.dispatch import receiver
+from django.db.models.signals import post_save
+class Cek(models.Model):
+    tanggal = models.DateField(null=True)
+    no_cek = models.CharField(max_length=50, null=True)
+    nomer_bank_tertarik = models.ForeignKey(BankTertarik, null=True, on_delete=models.SET_NULL)
+    ajuan_terkait = models.ManyToManyField(Ajuan, blank=True, related_name='ceks_terkait', limit_choices_to={'is_selected': False})
+    RPC = models.ForeignKey(RekapPencairanCek, null=True, blank=True, on_delete=models.SET_NULL)
+    total_cek = models.DecimalField(max_digits=20, blank=True, null=True, decimal_places=0)
 
     def __str__(self):
         return self.no_cek
@@ -135,6 +142,29 @@ class Cek(models.Model):
     class Meta:
         verbose_name_plural = 'Cek'
 
+@receiver(m2m_changed, sender=Cek.ajuan_terkait.through)
+def update_total_cek_on_m2m_changed(sender, instance, action, **kwargs):
+    if action in ['post_add', 'post_remove', 'post_clear']:
+        total_ajuan = instance.ajuan_terkait.aggregate(total_ajuan=Sum('total_ajuan'))['total_ajuan']
+        instance.total_cek = total_ajuan
+        instance.save()
+
+
+@receiver(m2m_changed, sender=Cek.ajuan_terkait.through)
+def update_total_cek_on_m2m_changed(sender, instance, action, **kwargs):
+    if action in ['post_add', 'post_remove', 'post_clear']:
+        # Ambil semua 'ajuan_terkait' yang terkait dengan instance 'Cek'
+        ajuan_terkait = instance.ajuan_terkait.all()
+
+        # Set 'is_selected' menjadi True untuk semua 'ajuan_terkait'
+        ajuan_terkait.update(is_selected=True)
+
+        # Hitung total_ajuan
+        total_ajuan = ajuan_terkait.aggregate(total_ajuan=Sum('total_ajuan'))['total_ajuan']
+
+        # Simpan total_ajuan ke instance 'Cek'
+        instance.total_cek = total_ajuan
+        instance.save()
 
 class BuktiKasKeluar(models.Model):
     no_BKK = models.CharField(max_length=50, blank=True, help_text="nomor BKK akan terisi otomatis")
@@ -142,8 +172,9 @@ class BuktiKasKeluar(models.Model):
     ajuan = models.ForeignKey(Ajuan, null=True, blank=True, on_delete=models.SET_NULL)
     dibayarkan_kepada = models.CharField(null=False, max_length=20)
     uraian = models.CharField(null=False, max_length=50)
-    nomer_bank_tertarik = models.ForeignKey(BankTertarik, null=True, on_delete=models.SET_NULL)
     nomer_cek = models.ForeignKey(Cek, null=True, blank=True, on_delete=models.SET_NULL)
+    nomer_bank_tertarik = models.ForeignKey(BankTertarik, null=True, blank=True, on_delete=models.SET_NULL)
+
     def __str__(self):
         return self.no_BKK
 
@@ -165,4 +196,35 @@ class BuktiKasKeluar(models.Model):
             no_BKK = f'BKK{id_num}({count})'
 
         super().save(*args, **kwargs)
+
+@receiver(pre_save, sender=BuktiKasKeluar)
+def update_nomer_bank_tertarik(sender, instance, **kwargs):
+    if instance.nomer_cek:
+        # Jika nomer_cek telah dipilih, ambil nilai nomer_bank_tertarik dari nomer_cek
+        instance.nomer_bank_tertarik = instance.nomer_cek.nomer_bank_tertarik
+    else:
+        # Jika nomer_cek tidak dipilih, set nomer_bank_tertarik menjadi None atau sesuai dengan kebutuhan Anda
+        instance.nomer_bank_tertarik = None
+
+# Register the signal
+pre_save.connect(update_nomer_bank_tertarik, sender=BuktiKasKeluar)
+
+class RekapBankTertarik(models.Model):
+    no_RBT = models.CharField(max_length=50, blank=True, help_text="nomor RBT akan terisi otomatis")
+    tanggal = models.DateField(null=True)
+    no_cek = models.ForeignKey(Cek, null=True, blank=True, on_delete=models.SET_NULL)
+    dana_masuk = models.ForeignKey(DanaMasuk, null=True, blank=True, on_delete=models.SET_NULL)
+    dana_keluar = models.DecimalField(max_digits=20, decimal_places=0)
+
+    class Meta:
+        verbose_name_plural = 'Rekap Bank Tertarik'
+
+# @receiver(pre_save, sender=Cek)
+# def update_dana_keluar(sender, instance, **kwargs):
+#     if instance.nomer_cek:
+#         # Jika nomer_cek telah dipilih, ambil nilai nomer_bank_tertarik dari nomer_cek
+#         instance. = instance.nomer_cek.nomer_bank_tertarik
+#     else:
+#         # Jika nomer_cek tidak dipilih, set nomer_bank_tertarik menjadi None atau sesuai dengan kebutuhan Anda
+#         instance.nomer_bank_tertarik = None
 
