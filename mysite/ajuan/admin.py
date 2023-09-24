@@ -24,7 +24,6 @@ from reportlab.lib.units import cm
 from babel.numbers import format_currency
 from reportlab.lib.units import inch
 from terbilang import Terbilang
-import textwrap
 
 
 
@@ -153,7 +152,7 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
             words = text.split()
             return '\n'.join([' '.join(words[i:i + limit]) for i in range(0, len(words), limit)])
 
-        logo_path = os.path.join(settings.STATIC_ROOT, 'mysite/logo rahmany.png')
+        logo_path = os.path.join(settings.STATIC_ROOT, 'images/Sistem Ajuan Bu Ita.png')
         logo = Image(logo_path)
         logo.drawHeight = 1.5 * cm
         logo.drawWidth = 2 * cm
