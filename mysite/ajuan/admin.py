@@ -616,28 +616,57 @@ class CekAdmin(admin.ModelAdmin):
         doc = SimpleDocTemplate(response, pagesize=landscape(letter))
         elements = []
 
+        styles = getSampleStyleSheet()
         title_style = styles['Heading1']
-        title_style.alignment = TA_CENTER
+        title_style.alignment = 1  # TA_CENTER is 1
         title = Paragraph('Daftar Cek', style=title_style)
         elements.append(title)
+
         row_num = 1
-        data = [['NO.', 'NO CEK', 'AJUAN', 'NOMER BANK TERTARIK']]
+        data = [['No.', 'Tanggal', 'No.Cek', 'Nomer Bank Tertarik','Ajuan', 'RPC', 'Total Ajuan']]
+
+        total_sum = 0  # Inisialisasi total
+
         for cek in queryset:
-            row =[
+            if cek.total_cek is not None:
+                formatted_total_cek = format_currency(cek.total_cek, 'IDR', locale='id_ID')
+            else:
+                formatted_total_cek = "-"  # Or any string you want to display when total_cek is None
+            ajuans = ", ".join(str(ajuan.nomor_pengajuan) for ajuan in cek.ajuan_terkait.all())
+            total_ajuan = cek.ajuan_terkait.aggregate(Sum('total_ajuan'))[
+                'total_ajuan__sum']  # asumsikan total_ajuan adalah field dalam model Ajuan
+
+            # Menambahkan 'cek.tanggal' dan 'total_ajuan' ke baris tabel
+            row = [
                 row_num,
+                cek.tanggal,
                 cek.no_cek,
-                cek.ajuan,
+                cek.nomer_bank_tertarik,
+                ajuans,
                 cek.RPC,
+                formatted_total_cek,  # Total Ajuan
+
             ]
             data.append(row)
             row_num += 1
+
+            if cek.total_cek is not None:
+                total_sum += cek.total_cek
+
+        total_row = [
+            'Total', '', '', '', '', '', format_currency(total_sum, 'IDR', locale='id_ID')
+        ]
+        data.append(total_row)
+
         table = Table(data)
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('ALIGN', (1, 1), (1, -2), 'LEFT'),  # Set "NAMA KEGIATAN" in the second row to align left
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
+            ('ALIGN', (6, 1), (6, -1), 'RIGHT'),
+            ('ALIGN', (0, 1), (1, -2), 'CENTER'),
+            ('ALIGN', (0, 0), (6, 0), 'CENTER'),
+            ('FONTNAME', (0, 0), (-0, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 10),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
             ('BACKGROUND', (0, 1), (-1, -1), colors.aliceblue),
