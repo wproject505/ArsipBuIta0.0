@@ -135,7 +135,6 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
             ('TOPPADDING', (0, 0), (-1, 0), 2.5),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 10),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 5),
@@ -181,25 +180,6 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
         self.set_table_style(table_0)
         elements.append(table_0)
 
-        # for datas in data :
-        #     total_ajuan = datas.ajuan.total_ajuan if datas and datas.ajuan and datas.ajuan.total_ajuan else 0
-        #     total_ajuan_str = str(total_ajuan)  # Perbaikan di sini
-        #     t = Terbilang()
-        #     t.parse(total_ajuan_str)
-        #     t_gr = t.getresult()
-        #     t_gr_string_title = t_gr.title() + ' Rupiah'
-        #     data_0 = [
-        #         [logo, '\n BUKTI KAS KELUAR\n_________________',
-        #          'Nomer BKK: {}\nTanggal: {}'.format(datas.no_BKK, datas.tanggal_BKK) if datas else ''],
-        #         ['Perkiraan', 'Uraian', 'Jumlah'],
-        #         ['', '', ''],
-        #         ['', '', ''],
-        #         ['Dibayarkan Kepada:\n {}'.format(datas.dibayarkan_kepada), datas.uraian,
-        #          format_currency(data.ajuan.total_ajuan, 'IDR', locale='id_ID') if datas.ajuan.total_ajuan else '']
-        #         ['Terbilang', '{}'.format(t_gr_string_title), '']]
-        #     table_0 = Table(data_0, colWidths=[150, 250, 150])
-        #     self.set_table_style(table_0)
-        #     elements.append(table_0)
 
     def generate_second_table(self, elements, data):
         data_2 = [
@@ -324,8 +304,10 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('ALIGN', (7, 1), (7, -1), 'LEFT'),  # Set "NAMA KEGIATAN" in the second row to align left
+            ('ALIGN', (0, 2), (-1, -1), 'LEFT'),
+            ('ALIGN', (0, 1), (0, -1), 'CENTER'),
+            ('ALIGN', (0, 0), (7, 0), 'CENTER'),
+            ('ALIGN', (7, 1), (7, -1), 'RIGHT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 10),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
@@ -426,7 +408,7 @@ class AjuanAdmin(admin.ModelAdmin):
             total += total_ajuan
 
             # Add row for total_ajuan
-        data.append(['Total', '', '', '','', format_currency(total, 'IDR', locale='id_ID', )])
+        data.append(['', '', '', '','Total', format_currency(total, 'IDR', locale='id_ID', )])
 
 
         table = Table(data)
@@ -435,6 +417,8 @@ class AjuanAdmin(admin.ModelAdmin):
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('ALIGN', (3, 1), (3, -2), 'LEFT'),
+            ('ALIGN', (2, 1), (2, -2), 'LEFT'),
+            ('ALIGN', (1, 1), (1, -2), 'LEFT'),
             ('ALIGN', (5, 1), (5, -2), 'RIGHT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 10),
@@ -593,14 +577,29 @@ class RekapAjuanPengambilanTabunganAdmin(admin.ModelAdmin):
     export_as_pdf.short_description = "Export selected as PDF"
 
 from django.http import HttpResponse
+from django.db.models import Q
 class CekAdmin(admin.ModelAdmin):
     raw_id_fields = ('RPC',)
-    search_fields = ('no_cek','nomer_bank_tertarik__nomer_bank_tertarik','RPC__no_RPC',)
-    list_display = ('tanggal','no_cek','nomer_bank_tertarik','display_many_to_many','total_cek', 'RPC',)
+    search_fields = ('no_cek', 'nomer_bank_tertarik__nomer_bank_tertarik', 'RPC__no_RPC',)
+    list_display = ('tanggal', 'no_cek', 'nomer_bank_tertarik', 'display_many_to_many', 'total_cek', 'RPC',)
     actions = ["export_as_pdf"]
     formfield_overrides = {
-        models.ManyToManyField: {'widget': FilteredSelectMultiple('Sumber', False)},
+        models.ManyToManyField: {'widget': FilteredSelectMultiple('Ajuan', False)},
     }
+    def get_form(self, request, obj=None, **kwargs):
+        request._obj_ = obj
+        return super(CekAdmin, self).get_form(request, obj, **kwargs)
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        if db_field.name == "ajuan_terkait":
+            if hasattr(request, '_obj_') and request._obj_ is not None:
+                kwargs['queryset'] = Ajuan.objects.filter(
+                    Q(is_selected=False) | Q(ceks_terkait=request._obj_)
+                )
+            else:
+                kwargs['queryset'] = Ajuan.objects.filter(is_selected=False)
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
+
+
 
     def display_many_to_many(self, obj):
         # Ambil nomor_pengajuan dari setiap objek Ajuan yang terkait dalam ajuan_terkait

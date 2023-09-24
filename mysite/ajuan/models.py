@@ -132,7 +132,7 @@ class Cek(models.Model):
     tanggal = models.DateField(null=True)
     no_cek = models.CharField(max_length=50, null=True)
     nomer_bank_tertarik = models.ForeignKey(BankTertarik, null=True, on_delete=models.SET_NULL)
-    ajuan_terkait = models.ManyToManyField(Ajuan, blank=True, related_name='ceks_terkait', limit_choices_to={'is_selected': False})
+    ajuan_terkait = models.ManyToManyField(Ajuan, blank=True, related_name='ceks_terkait')
     RPC = models.ForeignKey(RekapPencairanCek, null=True, blank=True, on_delete=models.SET_NULL)
     total_cek = models.DecimalField(max_digits=20, blank=True, null=True, decimal_places=0)
 
@@ -142,29 +142,18 @@ class Cek(models.Model):
     class Meta:
         verbose_name_plural = 'Cek'
 
-@receiver(m2m_changed, sender=Cek.ajuan_terkait.through)
-def update_total_cek_on_m2m_changed(sender, instance, action, **kwargs):
-    if action in ['post_add', 'post_remove', 'post_clear']:
-        total_ajuan = instance.ajuan_terkait.aggregate(total_ajuan=Sum('total_ajuan'))['total_ajuan']
-        instance.total_cek = total_ajuan
-        instance.save()
-
 
 @receiver(m2m_changed, sender=Cek.ajuan_terkait.through)
-def update_total_cek_on_m2m_changed(sender, instance, action, **kwargs):
-    if action in ['post_add', 'post_remove', 'post_clear']:
-        # Ambil semua 'ajuan_terkait' yang terkait dengan instance 'Cek'
-        ajuan_terkait = instance.ajuan_terkait.all()
+def update_ajuan_and_total_cek(sender, instance, action, pk_set, **kwargs):
+    if action == 'post_add':
+        Ajuan.objects.filter(pk__in=pk_set).update(is_selected=True)
+    elif action == 'post_remove':
+        Ajuan.objects.filter(pk__in=pk_set).update(is_selected=False)
 
-        # Set 'is_selected' menjadi True untuk semua 'ajuan_terkait'
-        ajuan_terkait.update(is_selected=True)
-
-        # Hitung total_ajuan
-        total_ajuan = ajuan_terkait.aggregate(total_ajuan=Sum('total_ajuan'))['total_ajuan']
-
-        # Simpan total_ajuan ke instance 'Cek'
-        instance.total_cek = total_ajuan
-        instance.save()
+    ajuan_terkait = instance.ajuan_terkait.all()
+    total_ajuan = ajuan_terkait.aggregate(total_ajuan=Sum('total_ajuan'))['total_ajuan']
+    instance.total_cek = total_ajuan
+    instance.save()
 
 class BuktiKasKeluar(models.Model):
     no_BKK = models.CharField(max_length=50, blank=True, help_text="nomor BKK akan terisi otomatis")
