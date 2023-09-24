@@ -867,6 +867,7 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
 
 class RekapBankTertarikAdmin(admin.ModelAdmin):
     search_fields = ('no_RBT',)
+    raw_id_fields = ['dana_masuk','no_cek' ]
     # readonly_fields = ('no_RBT', 'tanggal','uraian',)
 
     def display_ajuan(self, obj):
