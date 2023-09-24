@@ -23,12 +23,12 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
 from reportlab.lib.units import cm
 from babel.numbers import format_currency
 from reportlab.lib.units import inch
+from terbilang import Terbilang
+import textwrap
 
 
 
 styles = getSampleStyleSheet()
-
-
 class DanaMasukAdmin(admin.ModelAdmin):
 
     search_fields = ['waktu_masuk', 'uraian', 'bank_penerima', 'total_dana']
@@ -136,6 +136,7 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
             ('TOPPADDING', (0, 0), (-1, 0), 2.5),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 10),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 5),
@@ -146,24 +147,60 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
             ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ]))
+
     def generate_first_table(self, elements, data):
+        def wrap_text_by_words(text, limit=7):
+            words = text.split()
+            return '\n'.join([' '.join(words[i:i + limit]) for i in range(0, len(words), limit)])
+
         logo_path = os.path.join(settings.STATIC_ROOT, 'mysite/logo rahmany.png')
         logo = Image(logo_path)
         logo.drawHeight = 1.5 * cm
         logo.drawWidth = 2 * cm
 
+        total_ajuan = data.ajuan.total_ajuan if data and data.ajuan and data.ajuan.total_ajuan else 0
+        total_ajuan_str = str(total_ajuan)
+        t = Terbilang()
+        t.parse(total_ajuan_str)
+        t_gr = t.getresult()
+        t_gr_string_title = t_gr.title() + ' Rupiah'
+        t_gr_string_title = wrap_text_by_words(t_gr_string_title, 7)
+
+
         data_0 = [
             [logo, '\n BUKTI KAS KELUAR\n_________________',
-             'Nomer BKK: {}\nTanggal: {}'.format(data.no_BKK, data.tanggal_BKK)],
+             'Nomer BKK: {}\nTanggal: {}'.format(data.no_BKK, data.tanggal_BKK) if data else ''],
             ['Perkiraan', 'Uraian', 'Jumlah'],
             ['', '', ''],
             ['', '', ''],
             ['Dibayarkan Kepada:\n {}'.format(data.dibayarkan_kepada), data.uraian,
-             format_currency(data.ajuan.total_ajuan, 'IDR', locale='id_ID') if data.ajuan.total_ajuan else '']
+             format_currency(data.ajuan.total_ajuan, 'IDR', locale='id_ID') if data.ajuan.total_ajuan else ''],
+            ['Terbilang', '{}'.format(t_gr_string_title), '']
         ]
+
         table_0 = Table(data_0, colWidths=[150, 250, 150])
         self.set_table_style(table_0)
         elements.append(table_0)
+
+        # for datas in data :
+        #     total_ajuan = datas.ajuan.total_ajuan if datas and datas.ajuan and datas.ajuan.total_ajuan else 0
+        #     total_ajuan_str = str(total_ajuan)  # Perbaikan di sini
+        #     t = Terbilang()
+        #     t.parse(total_ajuan_str)
+        #     t_gr = t.getresult()
+        #     t_gr_string_title = t_gr.title() + ' Rupiah'
+        #     data_0 = [
+        #         [logo, '\n BUKTI KAS KELUAR\n_________________',
+        #          'Nomer BKK: {}\nTanggal: {}'.format(datas.no_BKK, datas.tanggal_BKK) if datas else ''],
+        #         ['Perkiraan', 'Uraian', 'Jumlah'],
+        #         ['', '', ''],
+        #         ['', '', ''],
+        #         ['Dibayarkan Kepada:\n {}'.format(datas.dibayarkan_kepada), datas.uraian,
+        #          format_currency(data.ajuan.total_ajuan, 'IDR', locale='id_ID') if datas.ajuan.total_ajuan else '']
+        #         ['Terbilang', '{}'.format(t_gr_string_title), '']]
+        #     table_0 = Table(data_0, colWidths=[150, 250, 150])
+        #     self.set_table_style(table_0)
+        #     elements.append(table_0)
 
     def generate_second_table(self, elements, data):
         data_2 = [
