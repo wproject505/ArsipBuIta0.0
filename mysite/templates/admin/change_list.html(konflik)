@@ -1,0 +1,49 @@
+{% extends "admin/change_list.html" %}
+
+{% block extrahead %}
+  <script>
+    window.addEventListener('DOMContentLoaded', function() {
+      const perPageSelect = document.createElement('select');
+      perPageSelect.id = 'per_page_select';
+      perPageSelect.innerHTML = `
+        <option value="10">10</option>
+        <option value="20">20</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+        <option value="200">200</option>
+        <option value="0">All</option>
+      `;
+
+      perPageSelect.value = "{{ cl.list_per_page }}";
+
+      perPageSelect.addEventListener('change', function() {
+        const selectedValue = this.value;
+        const currentUrl = new URL(window.location);
+        currentUrl.searchParams.set('per_page', selectedValue);
+        window.location.href = currentUrl.toString();
+      });
+
+      document.querySelector('.paginator').appendChild(perPageSelect);
+
+      // Menambahkan event listener untuk item daftar yang diklik
+      const listItems = document.querySelectorAll('.field-unit_ajuan a'); // Ganti ".field-unit_ajuan a" dengan selektor yang sesuai
+      listItems.forEach(item => {
+        item.addEventListener('click', function() {
+          // Tambahkan kode di sini untuk menangani klik item daftar, jika diperlukan
+        });
+      });
+
+      // Mendapatkan parameter dari URL
+      const urlParams = new URLSearchParams(window.location.search);
+
+      // Menghapus parameter 'e' jika ada
+      if (urlParams.has('e')) {
+        urlParams.delete('e');
+      }
+
+      // Mengatur ulang URL tanpa parameter 'e'
+      const newUrl = window.location.pathname + '?' + urlParams.toString();
+      window.history.replaceState({}, document.title, newUrl);
+    });
+  </script>
+{% endblock %}

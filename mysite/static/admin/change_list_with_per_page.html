@@ -1,0 +1,24 @@
+{% extends "admin/change_list.html" %}
+
+{% block result_list %}
+  <div class="paginator">
+    <span>Show:</span>
+    <select id="per_page_select">
+      <option value="20">20</option>
+      <option value="50">50</option>
+      <option value="100">100</option>
+      <option value="200">200</option>
+      <option value="0">All</option>
+    </select>
+    <span>items per page</span>
+  </div>
+  {{ block.super }}
+  <script>
+    document.getElementById("per_page_select").addEventListener("change", function() {
+      const selectedValue = this.value;
+      const currentUrl = new URL(window.location);
+      currentUrl.searchParams.set('per_page', selectedValue);
+      window.location.href = currentUrl.toString();
+    });
+  </script>
+{% endblock %}

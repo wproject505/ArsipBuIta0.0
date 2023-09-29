@@ -25,14 +25,22 @@ from babel.numbers import format_currency
 from reportlab.lib.units import inch
 from terbilang import Terbilang
 
-
-
 styles = getSampleStyleSheet()
-class DanaMasukAdmin(admin.ModelAdmin):
 
+class DanaMasukAdmin(admin.ModelAdmin):
     search_fields = ['waktu_masuk', 'uraian', 'bank_penerima', 'total_dana']
     list_display = ('waktu_masuk', 'uraian', 'bank_penerima', 'get_total_dana')
-    actions = ["export_as_pdf", "export_to_excel"]
+    actions = ["export_as_pdf", "export_to_excel","update_50_list"]
+    list_per_page = 20
+
+    def changelist_view(self, request, extra_context=None):
+        if 'per_page' in request.GET:
+            per_page = int(request.GET['per_page'])
+            if per_page > 0:
+                self.list_per_page = per_page
+            else:
+                self.list_per_page = self.list_max_show_all
+        return super().changelist_view(request, extra_context=extra_context)
 
     def export_to_excel(self, request, queryset):
         # Query data dari model Dana Masuk
@@ -127,6 +135,16 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
     list_display = ('no_BKK', 'tanggal_BKK', 'ajuan','get_total_ajuan', 'dibayarkan_kepada', 'uraian', 'nomer_bank_tertarik', 'nomer_cek')
     actions = ["export_to_excel", "export_as_pdf_global", "export_to_pdf_satuan","test_add_logo"]
     raw_id_fields = ['ajuan', 'nomer_cek']
+    list_per_page = 20  # Jumlah item per halaman default
+
+    def changelist_view(self, request, extra_context=None):
+        if 'per_page' in request.GET:
+            per_page = int(request.GET['per_page'])
+            if per_page > 0:
+                self.list_per_page = per_page
+            else:
+                self.list_per_page = self.list_max_show_all
+        return super().changelist_view(request, extra_context=extra_context)
 
 
     def set_table_style(self, table):
@@ -151,7 +169,7 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
             words = text.split()
             return '\n'.join([' '.join(words[i:i + limit]) for i in range(0, len(words), limit)])
 
-        logo_path = os.path.join(settings.STATIC_ROOT, 'images/Sistem Ajuan Bu Ita.png')
+        logo_path = os.path.join(settings.STATIC_ROOT, 'mysite/logo rahmany.png')
         logo = Image(logo_path)
         logo.drawHeight = 1.5 * cm
         logo.drawWidth = 2 * cm
@@ -335,7 +353,16 @@ class AjuanAdmin(admin.ModelAdmin):
     readonly_fields = ['nomor_pengajuan', ]
     raw_id_fields = ['RAPT',]
     actions = ['export_as_pdf','export_to_excel']
+    list_per_page = 20  # Jumlah item per halaman default
 
+    def changelist_view(self, request, extra_context=None):
+        if 'per_page' in request.GET:
+            per_page = int(request.GET['per_page'])
+            if per_page > 0:
+                self.list_per_page = per_page
+            else:
+                self.list_per_page = self.list_max_show_all
+        return super().changelist_view(request, extra_context=extra_context)
 
     def get_total_ajuan(self, obj):
         return babel.numbers.format_currency(obj.total_ajuan, 'IDR', locale='id_ID')
@@ -454,6 +481,16 @@ class RekapAjuanPengambilanTabunganAdmin(admin.ModelAdmin):
     list_display = ('no_RAPT','get_nomor_pengajuan','get_total_ajuan', 'get_jumlah')
     readonly_fields = ('no_RAPT','jumlah',)
     inlines = [AjuanInLineRAPT]
+    list_per_page = 20  # Jumlah item per halaman default
+
+    def changelist_view(self, request, extra_context=None):
+        if 'per_page' in request.GET:
+            per_page = int(request.GET['per_page'])
+            if per_page > 0:
+                self.list_per_page = per_page
+            else:
+                self.list_per_page = self.list_max_show_all
+        return super().changelist_view(request, extra_context=extra_context)
 
     def get_nomor_pengajuan(self, obj):
         nomor_pengajuan_list = []
@@ -580,12 +617,31 @@ from django.http import HttpResponse
 from django.db.models import Q
 class CekAdmin(admin.ModelAdmin):
     raw_id_fields = ('RPC',)
-    search_fields = ('no_cek', 'nomer_bank_tertarik__nomer_bank_tertarik', 'RPC__no_RPC',)
-    list_display = ('tanggal', 'no_cek', 'nomer_bank_tertarik', 'display_many_to_many', 'total_cek', 'RPC',)
+    search_fields = ('no_cek',)
+    list_display = ('tanggal', 'no_cek', 'nomer_bank_tertarik', 'display_many_to_many', 'get_total_cek', 'RPC',)
     actions = ["export_as_pdf"]
     formfield_overrides = {
         models.ManyToManyField: {'widget': FilteredSelectMultiple('Ajuan', False)},
     }
+    list_per_page = 20  # Jumlah item per halaman default
+
+    def changelist_view(self, request, extra_context=None):
+        if 'per_page' in request.GET:
+            per_page = int(request.GET['per_page'])
+            if per_page > 0:
+                self.list_per_page = per_page
+            else:
+                self.list_per_page = self.list_max_show_all
+        return super().changelist_view(request, extra_context=extra_context)
+
+    def queryset(self, request):
+        # Menggunakan method queryset() untuk menyesuaikan query yang digunakan dalam list_display
+        qs = super().queryset(request)
+        # Filter hanya objek-objek yang memiliki total_cek = 0
+        return qs.filter(total_cek=0)
+
+    def get_total_cek(self, obj):
+        return babel.numbers.format_currency(obj.total_cek, 'IDR', locale='id_ID')
     def get_form(self, request, obj=None, **kwargs):
         request._obj_ = obj
         return super(CekAdmin, self).get_form(request, obj, **kwargs)
@@ -705,9 +761,17 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
     search_fields = ('no_RPC',)
     readonly_fields = ('no_RPC', 'jumlah',)
     inlines = [CekInLineRPC]
-    # list_display = ('no_RPC', 'jumlah', 'nomer_bank_tertarik', 'get_total_ajuan', 'get_nama_kegiatan')
-
     actions = ['export_as_pdf', 'update_jumlah_RPC']
+    list_per_page = 20  # Jumlah item per halaman default
+
+    def changelist_view(self, request, extra_context=None):
+        if 'per_page' in request.GET:
+            per_page = int(request.GET['per_page'])
+            if per_page > 0:
+                self.list_per_page = per_page
+            else:
+                self.list_per_page = self.list_max_show_all
+        return super().changelist_view(request, extra_context=extra_context)
 
     def get_jumlah(self, obj):
         return babel.numbers.format_currency(obj.jumlah, 'IDR', locale='id_ID')
@@ -868,7 +932,16 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
 class RekapBankTertarikAdmin(admin.ModelAdmin):
     search_fields = ('no_RBT',)
     raw_id_fields = ['dana_masuk','no_cek' ]
-    # readonly_fields = ('no_RBT', 'tanggal','uraian',)
+    list_per_page = 20  # Jumlah item per halaman default
+
+    def changelist_view(self, request, extra_context=None):
+        if 'per_page' in request.GET:
+            per_page = int(request.GET['per_page'])
+            if per_page > 0:
+                self.list_per_page = per_page
+            else:
+                self.list_per_page = self.list_max_show_all
+        return super().changelist_view(request, extra_context=extra_context)
 
     def display_ajuan(self, obj):
         return ', '.join([ajuan.nomor_pengajuan for ajuan in obj.ajuan.all()])

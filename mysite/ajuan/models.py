@@ -125,9 +125,12 @@ class Ajuan(models.Model):
         super(Ajuan, self).save(*args, **kwargs)
 
 
+
+
+
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
-from django.db.models.signals import post_save
+
 class Cek(models.Model):
     tanggal = models.DateField(null=True)
     no_cek = models.CharField(max_length=50, null=True)
@@ -150,9 +153,8 @@ def update_ajuan_and_total_cek(sender, instance, action, pk_set, **kwargs):
     elif action == 'post_remove':
         Ajuan.objects.filter(pk__in=pk_set).update(is_selected=False)
 
-    ajuan_terkait = instance.ajuan_terkait.all()
-    total_ajuan = ajuan_terkait.aggregate(total_ajuan=Sum('total_ajuan'))['total_ajuan']
-    instance.total_cek = total_ajuan
+    total_cek = instance.ajuan_terkait.aggregate(total_ajuan=Sum('total_ajuan'))['total_ajuan']
+    instance.total_cek = total_cek or 0
     instance.save()
 
 class BuktiKasKeluar(models.Model):
