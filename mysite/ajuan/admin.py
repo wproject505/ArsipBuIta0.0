@@ -762,7 +762,8 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
     readonly_fields = ('no_RPC', 'jumlah',)
     inlines = [CekInLineRPC]
     actions = ['export_as_pdf', 'update_jumlah_RPC']
-    list_display = ('no_RPC', 'jumlah')
+    list_display = ('no_RPC', 'jumlah', 'nomer_bank_tertarik', 'get_nama_kegiatan_from_rpc','get_total_ajuan')
+
     list_per_page = 20  # Jumlah item per halaman default
 
     def changelist_view(self, request, extra_context=None):
@@ -786,11 +787,32 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
 
     update_jumlah_RPC.short_description = 'Update Jumlah RPC'
 
-    def get_total_ajuan(self, obj):
+    def get_nama_kegiatan_from_rpc(self, rpc_obj):
+        nama_kegiatan_list = []
+
+        # Akses semua objek Cek yang terkait dengan objek RPC
+        ceks_related_to_rpc = Cek.objects.filter(RPC=rpc_obj)
+
+        # Loop melalui semua objek Cek dan akses ajuannya
+        for cek in ceks_related_to_rpc:
+            for ajuan in cek.ajuan_terkait.all():
+                nama_kegiatan_list.append(ajuan.nama_kegiatan)
+
+        if nama_kegiatan_list:
+            return ", ".join(nama_kegiatan_list)
+        else:
+            return '-'
+
+    get_nama_kegiatan_from_rpc.short_description = 'Total Ajuan'
+
+    def get_total_ajuan(self, rpc_obj):
+        ceks_related_to_rpc = Cek.objects.filter(RPC=rpc_obj)
         total_ajuan_list = []
-        for cek in obj.cek_set.all():
-            if cek.ajuan:
-                total_ajuan_list.append(str(cek.ajuan.total_ajuan))
+
+        for cek in ceks_related_to_rpc:
+            for ajuan in cek.ajuan_terkait.all():
+                total_ajuan_list.append(str(ajuan.total_ajuan))
+
         if total_ajuan_list:
             return ", ".join(total_ajuan_list)
         else:
@@ -798,18 +820,20 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
 
     get_total_ajuan.short_description = 'Total Ajuan'
 
+
     def get_nama_kegiatan(self, obj):
         nama_kegiatan_list = []
-        for cek in obj.cek_set.all():
-            ajuan = cek.ajuan
-            if ajuan:
-                nama_kegiatan_list.append(ajuan.nama_kegiatan)
+
+        for ajuan in obj.ceks_terkait.all():
+            nama_kegiatan_list.append(ajuan.nama_kegiatan)
+
         if nama_kegiatan_list:
             return ", ".join(nama_kegiatan_list)
         else:
             return '-'
 
     get_nama_kegiatan.short_description = 'Nama Kegiatan'
+
 
     def nomer_bank_tertarik(self, obj):
         nomer_bank_tertarik_list = []
