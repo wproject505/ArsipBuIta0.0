@@ -28,7 +28,7 @@ from terbilang import Terbilang
 styles = getSampleStyleSheet()
 
 class DanaMasukAdmin(admin.ModelAdmin):
-    search_fields = ['waktu_masuk', 'uraian', 'bank_penerima', 'total_dana']
+    search_fields = ('waktu_masuk','uraian', 'bank_penerima__nomer_bank_tertarik',)
     list_display = ('waktu_masuk', 'uraian', 'bank_penerima', 'get_total_dana')
     actions = ["export_as_pdf", "export_to_excel","update_50_list"]
     list_per_page = 20
@@ -42,28 +42,28 @@ class DanaMasukAdmin(admin.ModelAdmin):
                 self.list_per_page = self.list_max_show_all
         return super().changelist_view(request, extra_context=extra_context)
 
-    def export_to_excel(self, request, queryset):
-        # Query data dari model Dana Masuk
-        data = queryset.values()
-
-        # Buat file Excel dan tambahkan header
-        wb = Workbook()
-        ws = wb.active
-        ws.append(['nama_dana_masuk', 'waktu_masuk', 'penanggung_jawab', 'total_dana'])
-
-        # Tambahkan data ke file Excel
-        for item in data:
-            row = [item['nama_dana_masuk'], item['waktu_masuk'], item['penanggung_jawab'], item['total_dana']]
-            ws.append(row)
-
-        # Konversi file Excel ke HttpResponse
-        response = HttpResponse(content_type='application/vnd.ms-excel')
-        response['Content-Disposition'] = 'attachment; filename=Dana_Masuk.xlsx'
-        wb.save(response)
-
-        return response
-
-    export_to_excel.short_description = 'Export to Excel'
+    # def export_to_excel(self, request, queryset):
+    #     # Query data dari model Dana Masuk
+    #     data = queryset.values()
+    #
+    #     # Buat file Excel dan tambahkan header
+    #     wb = Workbook()
+    #     ws = wb.active
+    #     ws.append(['nama_dana_masuk', 'waktu_masuk', 'penanggung_jawab', 'total_dana'])
+    #
+    #     # Tambahkan data ke file Excel
+    #     for item in data:
+    #         row = [item['nama_dana_masuk'], item['waktu_masuk'], item['penanggung_jawab'], item['total_dana']]
+    #         ws.append(row)
+    #
+    #     # Konversi file Excel ke HttpResponse
+    #     response = HttpResponse(content_type='application/vnd.ms-excel')
+    #     response['Content-Disposition'] = 'attachment; filename=Dana_Masuk.xlsx'
+    #     wb.save(response)
+    #
+    #     return response
+    #
+    # export_to_excel.short_description = 'Export to Excel'
 
     def export_as_pdf(self, request, queryset):
         response = HttpResponse(content_type='application/pdf')
@@ -803,7 +803,7 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
         else:
             return '-'
 
-    get_nama_kegiatan_from_rpc.short_description = 'Total Ajuan'
+    get_nama_kegiatan_from_rpc.short_description = 'Nama Kegiatan'
 
     def get_total_ajuan(self, rpc_obj):
         ceks_related_to_rpc = Cek.objects.filter(RPC=rpc_obj)
@@ -869,14 +869,14 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
         elements = []
 
         # Add title
-        title_style = styles['Heading1']
+        title_style = getSampleStyleSheet()['Heading1']
         title_style.alignment = TA_CENTER
         title = Paragraph('Daftar RPC' , style=title_style)
         elements.append(title)
 
         for rpc in queryset:
             # Add RPC number
-            rpc_num = Paragraph('RPC No. ' + str(rpc.no_RPC), style=styles['Heading2'])
+            rpc_num = Paragraph('RPC No. ' + str(rpc.no_RPC), style=getSampleStyleSheet()['Heading2'])
             elements.append(rpc_num)
 
             # Add table
@@ -884,20 +884,20 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
             total = 0
             row_num = 1
             for cek in rpc.cek_set.all():
-                ajuan = cek.ajuan
-                row = [
-                    row_num,
-                    ajuan.nama_kegiatan if ajuan else 'Batal',
-                    format_currency(cek.ajuan.total_ajuan, 'IDR', locale='id_ID') if ajuan else '',
-                    cek.no_cek,
-                    cek.nomer_bank_tertarik,
-                ]
-                data.append(row)
-                row_num += 1
-                if ajuan:
-                    total += ajuan.total_ajuan
+                for ajuan in cek.ajuan_terkait.all():  # Akses ajuan melalui ManyToMany
+                    row = [
+                        row_num,
+                        ajuan.nama_kegiatan if ajuan else 'Batal',
+                        babel.numbers.format_currency(ajuan.total_ajuan, 'IDR', locale='id_ID') if ajuan else '',
+                        cek.no_cek,
+                        cek.nomer_bank_tertarik,
+                    ]
+                    data.append(row)
+                    row_num += 1
+                    if ajuan:
+                        total += ajuan.total_ajuan
 
-            data.append(['JUMLAH', '', format_currency(total, 'IDR', locale='id_ID')])
+            data.append(['JUMLAH', '', babel.numbers.format_currency(total, 'IDR', locale='id_ID')])
 
             # Create table
             table = Table(data,colWidths=[70, 250, 150, 130, 130])
