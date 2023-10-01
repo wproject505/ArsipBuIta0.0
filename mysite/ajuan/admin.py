@@ -762,6 +762,7 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
     readonly_fields = ('no_RPC', 'jumlah',)
     inlines = [CekInLineRPC]
     actions = ['export_as_pdf', 'update_jumlah_RPC']
+    list_display = ('no_RPC', 'jumlah')
     list_per_page = 20  # Jumlah item per halaman default
 
     def changelist_view(self, request, extra_context=None):
