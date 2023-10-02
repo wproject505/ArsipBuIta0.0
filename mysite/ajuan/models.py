@@ -1,7 +1,8 @@
 from django.db import models
 from django.db.models import Sum
 from django.db.models.signals import pre_save
-
+from django.db.models.signals import m2m_changed
+from django.dispatch import receiver
 
 class UnitAjuan(models.Model):
     unit_ajuan = models.CharField(null=False, max_length=30)
@@ -128,8 +129,7 @@ class Ajuan(models.Model):
 
 
 
-from django.db.models.signals import m2m_changed
-from django.dispatch import receiver
+
 
 class Cek(models.Model):
     tanggal = models.DateField(null=True)

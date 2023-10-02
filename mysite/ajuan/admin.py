@@ -42,28 +42,6 @@ class DanaMasukAdmin(admin.ModelAdmin):
                 self.list_per_page = self.list_max_show_all
         return super().changelist_view(request, extra_context=extra_context)
 
-    # def export_to_excel(self, request, queryset):
-    #     # Query data dari model Dana Masuk
-    #     data = queryset.values()
-    #
-    #     # Buat file Excel dan tambahkan header
-    #     wb = Workbook()
-    #     ws = wb.active
-    #     ws.append(['nama_dana_masuk', 'waktu_masuk', 'penanggung_jawab', 'total_dana'])
-    #
-    #     # Tambahkan data ke file Excel
-    #     for item in data:
-    #         row = [item['nama_dana_masuk'], item['waktu_masuk'], item['penanggung_jawab'], item['total_dana']]
-    #         ws.append(row)
-    #
-    #     # Konversi file Excel ke HttpResponse
-    #     response = HttpResponse(content_type='application/vnd.ms-excel')
-    #     response['Content-Disposition'] = 'attachment; filename=Dana_Masuk.xlsx'
-    #     wb.save(response)
-    #
-    #     return response
-    #
-    # export_to_excel.short_description = 'Export to Excel'
 
     def export_as_pdf(self, request, queryset):
         response = HttpResponse(content_type='application/pdf')
@@ -762,7 +740,7 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
     readonly_fields = ('no_RPC', 'jumlah',)
     inlines = [CekInLineRPC]
     actions = ['export_as_pdf', 'update_jumlah_RPC']
-    list_display = ('no_RPC', 'jumlah', 'nomer_bank_tertarik', 'get_nama_kegiatan_from_rpc','get_total_ajuan')
+    list_display = ('no_RPC', 'get_jumlah', 'nomer_bank_tertarik', 'get_nama_kegiatan_from_rpc','get_total_ajuan')
 
     list_per_page = 20  # Jumlah item per halaman default
 
@@ -778,9 +756,12 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
     def get_jumlah(self, obj):
         return babel.numbers.format_currency(obj.jumlah, 'IDR', locale='id_ID')
     get_jumlah.short_description = 'Jumlah'
+
     def update_jumlah_RPC(self, request, queryset):
         for obj in queryset:
-            total_ajuan = sum(cek.ajuan.total_ajuan for cek in obj.cek_set.all() if cek.ajuan)
+            total_ajuan = 0
+            for cek in Cek.objects.filter(RPC=obj):
+                total_ajuan += sum(ajuan.total_ajuan for ajuan in cek.ajuan_terkait.all())
             obj.jumlah = total_ajuan
             obj.save(update_fields=['jumlah'])
         self.message_user(request, f'Successfully updated {queryset.count()} Rekap Pencairan Cek(s).')
@@ -845,21 +826,15 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
             return '-'
 
     def save_model(self, request, obj, form, change):
-        total_ajuan = 0
-        for cek in obj.cek_set.all():
-            total_ajuan += cek.ajuan.total_ajuan
-        obj.jumlah = total_ajuan
-        super().save_model(request, obj, form, change)
-
-
-
-    def save_model(self, request, obj, form, change):
         if obj.pk:
-            total_ajuan = sum(cek.ajuan.total_ajuan for cek in obj.cek_set.all() if cek.ajuan)
+            total_ajuan = 0
+            # Dapatkan semua objek Cek yang memiliki foreign key ke objek RekapPencairanCek ini
+            for cek in Cek.objects.filter(RPC=obj):
+                # Jumlahkan semua total_ajuan dari objek Ajuan yang terkait dengan objek Cek ini
+                total_ajuan += sum(ajuan.total_ajuan for ajuan in cek.ajuan_terkait.all())
+            # Tetapkan total_ajuan sebagai jumlah di objek RekapPencairanCek ini
             obj.jumlah = total_ajuan
         super().save_model(request, obj, form, change)
-
-
 
     def export_as_pdf(self, request, queryset):
         response = HttpResponse(content_type='application/pdf')
