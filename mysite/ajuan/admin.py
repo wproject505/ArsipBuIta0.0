@@ -233,33 +233,33 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
         return babel.numbers.format_currency(total_ajuan, 'IDR', locale='id_ID')
     get_total_ajuan.short_description = 'Total Ajuan'
 
-    def export_to_excel(self, request, queryset):
-        # Query data dari model BuktiKasKeluar
-        data = queryset.values('no_BKK', 'tanggal_BKK', 'ajuan_id', 'dibayarkan_kepada', 'uraian',
-                               'nomer_bank_tertarik', 'nomer_cek')
-
-        # Buat file Excel dan tambahkan header
-        wb = Workbook()
-        ws = wb.active
-        ws.append(['No.', 'No BKK', 'Tanggal BKK', 'Ajuan', 'Dibayarkan Kepada', 'Uraian', 'Nomer Bank Tertarik',
-                   'Nomor Cek'])
-        row_num = 1
-
-        # Tambahkan data ke file Excel
-        for item in data:
-            row = [row_num, item['no_BKK'], item['tanggal_BKK'], item['ajuan_id'], item['dibayarkan_kepada'],
-                   item['uraian'], item['nomer_bank_tertarik'], item['nomer_cek']]
-            ws.append(row)
-            row_num += 1
-
-        # Konversi file Excel ke HttpResponse
-        response = HttpResponse(content_type='application/vnd.ms-excel')
-        response['Content-Disposition'] = 'attachment; filename=BuktiKasKeluar.xlsx'
-        wb.save(response)
-
-        return response
-
-    export_to_excel.short_description = 'Export to Excel'
+    # def export_to_excel(self, request, queryset):
+    #     # Query data dari model BuktiKasKeluar
+    #     data = queryset.values('no_BKK', 'tanggal_BKK', 'ajuan_id', 'dibayarkan_kepada', 'uraian',
+    #                            'nomer_bank_tertarik', 'nomer_cek')
+    #
+    #     # Buat file Excel dan tambahkan header
+    #     wb = Workbook()
+    #     ws = wb.active
+    #     ws.append(['No.', 'No BKK', 'Tanggal BKK', 'Ajuan', 'Dibayarkan Kepada', 'Uraian', 'Nomer Bank Tertarik',
+    #                'Nomor Cek'])
+    #     row_num = 1
+    #
+    #     # Tambahkan data ke file Excel
+    #     for item in data:
+    #         row = [row_num, item['no_BKK'], item['tanggal_BKK'], item['ajuan_id'], item['dibayarkan_kepada'],
+    #                item['uraian'], item['nomer_bank_tertarik'], item['nomer_cek']]
+    #         ws.append(row)
+    #         row_num += 1
+    #
+    #     # Konversi file Excel ke HttpResponse
+    #     response = HttpResponse(content_type='application/vnd.ms-excel')
+    #     response['Content-Disposition'] = 'attachment; filename=BuktiKasKeluar.xlsx'
+    #     wb.save(response)
+    #
+    #     return response
+    #
+    # export_to_excel.short_description = 'Export to Excel'
 
     def export_as_pdf_global(self, request, queryset):
         response = HttpResponse(content_type='application/pdf')
@@ -346,40 +346,40 @@ class AjuanAdmin(admin.ModelAdmin):
         return babel.numbers.format_currency(obj.total_ajuan, 'IDR', locale='id_ID')
     get_total_ajuan.short_description = 'Total Ajuan'
 
-    def export_to_excel(self, request, queryset):
-        # Query data dari model BuktiKasKeluar
-        data = queryset.values('unit_ajuan__unit_ajuan', 'nomor_pengajuan', 'nama_kegiatan', 'waktu_ajuan', 'total_ajuan', 'RAPT')
-
-        # Buat file Excel dan tambahkan header
-        wb = Workbook()
-        ws = wb.active
-        ws.append(['No.','Unit Ajuan','Nomor Pengajuan','Nama Kegiatan','Waktu Ajuan','Total Ajuan','RAPT'])
-        # set rata tengah pada header
-        header_row = ws[1]
-        for cell in header_row:
-            cell.alignment = Alignment(horizontal='center')
-
-        row_num = 1
-        # Tambahkan data ke file Excel
-        for item in data:
-            row = [row_num, item['unit_ajuan__unit_ajuan'], item['nomor_pengajuan'], item['nama_kegiatan'], item['waktu_ajuan'], item['total_ajuan'],
-                   item['RAPT']]
-            ws.append(row)
-            row_num += 1
-
-            # Menyesuaikan lebar kolom secara otomatis
-            for column_cells in ws.columns:
-                length = max(len(str(cell.value)) for cell in column_cells)
-                ws.column_dimensions[column_cells[0].column_letter].width = length
-
-        # Konversi file Excel ke HttpResponse
-        response = HttpResponse(content_type='application/vnd.ms-excel')
-        response['Content-Disposition'] = 'attachment; filename=Ajuan.xlsx'
-        wb.save(response)
-
-        return response
-
-    export_to_excel.short_description = 'Export to Excel'
+    # def export_to_excel(self, request, queryset):
+    #     # Query data dari model BuktiKasKeluar
+    #     data = queryset.values('unit_ajuan__unit_ajuan', 'nomor_pengajuan', 'nama_kegiatan', 'waktu_ajuan', 'total_ajuan', 'RAPT')
+    #
+    #     # Buat file Excel dan tambahkan header
+    #     wb = Workbook()
+    #     ws = wb.active
+    #     ws.append(['No.','Unit Ajuan','Nomor Pengajuan','Nama Kegiatan','Waktu Ajuan','Total Ajuan','RAPT'])
+    #     # set rata tengah pada header
+    #     header_row = ws[1]
+    #     for cell in header_row:
+    #         cell.alignment = Alignment(horizontal='center')
+    #
+    #     row_num = 1
+    #     # Tambahkan data ke file Excel
+    #     for item in data:
+    #         row = [row_num, item['unit_ajuan__unit_ajuan'], item['nomor_pengajuan'], item['nama_kegiatan'], item['waktu_ajuan'], item['total_ajuan'],
+    #                item['RAPT']]
+    #         ws.append(row)
+    #         row_num += 1
+    #
+    #         # Menyesuaikan lebar kolom secara otomatis
+    #         for column_cells in ws.columns:
+    #             length = max(len(str(cell.value)) for cell in column_cells)
+    #             ws.column_dimensions[column_cells[0].column_letter].width = length
+    #
+    #     # Konversi file Excel ke HttpResponse
+    #     response = HttpResponse(content_type='application/vnd.ms-excel')
+    #     response['Content-Disposition'] = 'attachment; filename=Ajuan.xlsx'
+    #      wb.save(response)
+    #
+    #     return response
+    #
+    # export_to_excel.short_description = 'Export to Excel'
 
     def export_as_pdf(self, request, queryset):
         response = HttpResponse(content_type='application/pdf')
@@ -491,58 +491,57 @@ class RekapAjuanPengambilanTabunganAdmin(admin.ModelAdmin):
             return '-'
 
     get_total_ajuan.short_description = 'total ajuan'
-
     actions = ["export_as_pdf", "export_to_excel"]
 
     def get_jumlah(self, obj):
         return babel.numbers.format_currency(obj.jumlah, 'IDR', locale='id_ID')
     get_jumlah.short_description = 'Jumlah'
 
-    def export_to_excel(self, request, queryset):
-        # Query data dari model Dana Masuk
-        data = queryset.values()
+    # def export_to_excel(self, request, queryset):
+    #     # Query data dari model Dana Masuk
+    #     data = queryset.values()
+    #
+    #     # Buat file Excel dan tambahkan header
+    #     wb = Workbook()
+    #     ws = wb.active
+    #     ws.append(['no_RAPT', 'jumlah'])
+    #
+    #     # Tambahkan data ke file Excel
+    #     for item in data:
+    #         row = [item['no_RAPT'], item['jumlah']]
+    #         ws.append(row)
+    #
+    #     # Konversi file Excel ke HttpResponse
+    #     response = HttpResponse(content_type='application/vnd.ms-excel')
+    #     response['Content-Disposition'] = 'attachment; filename=RAPT.xlsx'
+    #     wb.save(response)
+    #
+    #     return response
+    #
+    # export_to_excel.short_description = 'Export to Excel'
 
-        # Buat file Excel dan tambahkan header
-        wb = Workbook()
-        ws = wb.active
-        ws.append(['no_RAPT', 'jumlah'])
-
-        # Tambahkan data ke file Excel
-        for item in data:
-            row = [item['no_RAPT'], item['jumlah']]
-            ws.append(row)
-
-        # Konversi file Excel ke HttpResponse
-        response = HttpResponse(content_type='application/vnd.ms-excel')
-        response['Content-Disposition'] = 'attachment; filename=RAPT.xlsx'
-        wb.save(response)
-
-        return response
-
-    export_to_excel.short_description = 'Export to Excel'
-
-    def export_to_excel(self, request, queryset):
-        # Query data dari model Dana Masuk
-        data = queryset.values()
-
-        # Buat file Excel dan tambahkan header
-        wb = Workbook()
-        ws = wb.active
-        ws.append(['no_RAPT', 'jumlah'])
-
-        # Tambahkan data ke file Excel
-        for item in data:
-            row = [item['no_RAPT'], item['jumlah']]
-            ws.append(row)
-
-        # Konversi file Excel ke HttpResponse
-        response = HttpResponse(content_type='application/vnd.ms-excel')
-        response['Content-Disposition'] = 'attachment; filename=RAPT.xlsx'
-        wb.save(response)
-
-        return response
-
-    export_to_excel.short_description = 'Export to Excel'
+    # def export_to_excel(self, request, queryset):
+    #     # Query data dari model Dana Masuk
+    #     data = queryset.values()
+    #
+    #     # Buat file Excel dan tambahkan header
+    #     wb = Workbook()
+    #     ws = wb.active
+    #     ws.append(['no_RAPT', 'jumlah'])
+    #
+    #     # Tambahkan data ke file Excel
+    #     for item in data:
+    #         row = [item['no_RAPT'], item['jumlah']]
+    #         ws.append(row)
+    #
+    #     # Konversi file Excel ke HttpResponse
+    #     response = HttpResponse(content_type='application/vnd.ms-excel')
+    #     response['Content-Disposition'] = 'attachment; filename=RAPT.xlsx'
+    #     wb.save(response)
+    #
+    #     return response
+    #
+    # export_to_excel.short_description = 'Export to Excel'
 
     def export_as_pdf(self, request, queryset):
         response = HttpResponse(content_type='application/pdf')
@@ -969,7 +968,7 @@ admin.site.register(BuktiKasKeluar, BuktiKasKeluarAdmin)
 admin.site.register(RekapPencairanCek, RekapPencairanCekAdmin)
 admin.site.register(RekapAjuanPengambilanTabungan, RekapAjuanPengambilanTabunganAdmin)
 admin.site.register(Cek, CekAdmin)
-admin.site.register(RekapBankTertarik, RekapBankTertarikAdmin)
+# admin.site.register(RekapBankTertarik, RekapBankTertarikAdmin)
 admin.site.site_header = 'Sistem Ajuan Bu Ita'
 admin.site.site_title = 'Selamat Datang di Sistem Ajuan Bu Ita'
 admin.site.index_title = 'Selamat datang di Dashboard Sistem Ajuan Bu Ita'
