@@ -3,7 +3,6 @@ from django.db.models import Sum
 from django.db.models.signals import pre_save
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
-
 class UnitAjuan(models.Model):
     unit_ajuan = models.CharField(null=False, max_length=30)
     def __str__(self):
@@ -18,7 +17,7 @@ class BankTertarik(models.Model):
         return self.nomer_bank_tertarik
 
     class Meta:
-        verbose_name_plural = 'Bank Tertarik'
+        verbose_name_plural = 'Bank'
 
 class DanaMasuk(models.Model):
     waktu_masuk = models.DateField(null=True)
@@ -210,12 +209,5 @@ class RekapBankTertarik(models.Model):
     class Meta:
         verbose_name_plural = 'Rekap Bank Tertarik'
 
-# @receiver(pre_save, sender=Cek)
-# def update_dana_keluar(sender, instance, **kwargs):
-#     if instance.nomer_cek:
-#         # Jika nomer_cek telah dipilih, ambil nilai nomer_bank_tertarik dari nomer_cek
-#         instance. = instance.nomer_cek.nomer_bank_tertarik
-#     else:
-#         # Jika nomer_cek tidak dipilih, set nomer_bank_tertarik menjadi None atau sesuai dengan kebutuhan Anda
-#         instance.nomer_bank_tertarik = None
+
 

@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rangefilter',
 #     'BKK.apps.BkkConfig',
 #     'DM.apps.DmConfig',
 #     'RAPT.apps.RaptConfig',
@@ -68,6 +69,9 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
             ],
+            'libraries': {
+                'rangefilter_compat': 'rangefilter.templatetags.rangefilter_compat',
+            },
         },
     },
 ]

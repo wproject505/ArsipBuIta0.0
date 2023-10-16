@@ -1,17 +1,19 @@
 import babel
+import openpyxl
+from openpyxl.styles import Alignment
+from openpyxl.utils import get_column_letter
+from openpyxl.workbook import Workbook
 from .models import *
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Spacer, Paragraph
 from .models import BuktiKasKeluar
 from babel.numbers import format_currency
 from decimal import Decimal
-from openpyxl import Workbook
 from django.contrib import admin
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
 from reportlab.lib.units import mm, cm
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image
 from reportlab.lib.styles import getSampleStyleSheet
-from openpyxl.styles import Alignment
 import babel.numbers
 import decimal
 from django.contrib.admin.widgets import FilteredSelectMultiple
@@ -24,6 +26,10 @@ from reportlab.lib.units import cm
 from babel.numbers import format_currency
 from reportlab.lib.units import inch
 from terbilang import Terbilang
+from rangefilter.filters import DateRangeFilterBuilder
+from openpyxl.styles import Font
+
+
 
 styles = getSampleStyleSheet()
 
@@ -32,6 +38,8 @@ class DanaMasukAdmin(admin.ModelAdmin):
     list_display = ('waktu_masuk', 'uraian', 'bank_penerima', 'get_total_dana')
     actions = ["export_as_pdf", "export_to_excel","update_50_list"]
     list_per_page = 20
+    list_filter = (("waktu_masuk", DateRangeFilterBuilder()),)
+
 
     def changelist_view(self, request, extra_context=None):
         if 'per_page' in request.GET:
@@ -41,6 +49,35 @@ class DanaMasukAdmin(admin.ModelAdmin):
             else:
                 self.list_per_page = self.list_max_show_all
         return super().changelist_view(request, extra_context=extra_context)
+
+    def export_to_excel(self, request, queryset):
+        # Mendapatkan kolom yang akan diekspor
+        data = queryset.values('waktu_masuk', 'uraian', 'bank_penerima', 'total_dana')
+
+        # Membuat file Excel
+        wb = Workbook()
+        ws = wb.active
+        ws.append(['Waktu Masuk', 'Uraian', 'Bank Penerima', 'Total Dana'])
+
+        row_num = 1
+
+        # Menambahkan header dengan nama kolom
+        for item in data:
+            row = [row_num, item['waktu_masuk'], item['uraian'], item['bank_penerima'], item['total_dana'],]
+            ws.append(row)
+            row_num += 1
+
+
+        # Mengatur respons HTTP
+        response = HttpResponse(content_type='application/vnd.ms-excel')
+        response['Content-Disposition'] = 'attachment; filename=DanaMasuk.xlsx'
+
+        # Simpan file Excel ke respons
+        wb.save(response)
+
+        return response
+
+    export_to_excel.short_description = 'Export to Excel'
 
 
     def export_as_pdf(self, request, queryset):
@@ -113,7 +150,8 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
     list_display = ('no_BKK', 'tanggal_BKK', 'ajuan','get_total_ajuan', 'dibayarkan_kepada', 'uraian', 'nomer_bank_tertarik', 'nomer_cek')
     actions = ["export_to_excel", "export_as_pdf_global", "export_to_pdf_satuan","test_add_logo"]
     raw_id_fields = ['ajuan', 'nomer_cek']
-    list_per_page = 20  # Jumlah item per halaman default
+    list_per_page = 20
+    list_filter = (("tanggal_BKK", DateRangeFilterBuilder()),)
 
     def changelist_view(self, request, extra_context=None):
         if 'per_page' in request.GET:
@@ -179,7 +217,7 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
 
     def generate_second_table(self, elements, data):
         data_2 = [
-            ['Nomer Bank Tertarik: {}'.format(
+            ['Nomer Bank: {}'.format(
                 data.nomer_bank_tertarik.nomer_bank_tertarik if data.nomer_bank_tertarik else ''),
              'Nomer Cek: {}'.format(data.nomer_cek.no_cek if data.nomer_cek else '')]
         ]
@@ -233,33 +271,33 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
         return babel.numbers.format_currency(total_ajuan, 'IDR', locale='id_ID')
     get_total_ajuan.short_description = 'Total Ajuan'
 
-    # def export_to_excel(self, request, queryset):
-    #     # Query data dari model BuktiKasKeluar
-    #     data = queryset.values('no_BKK', 'tanggal_BKK', 'ajuan_id', 'dibayarkan_kepada', 'uraian',
-    #                            'nomer_bank_tertarik', 'nomer_cek')
-    #
-    #     # Buat file Excel dan tambahkan header
-    #     wb = Workbook()
-    #     ws = wb.active
-    #     ws.append(['No.', 'No BKK', 'Tanggal BKK', 'Ajuan', 'Dibayarkan Kepada', 'Uraian', 'Nomer Bank Tertarik',
-    #                'Nomor Cek'])
-    #     row_num = 1
-    #
-    #     # Tambahkan data ke file Excel
-    #     for item in data:
-    #         row = [row_num, item['no_BKK'], item['tanggal_BKK'], item['ajuan_id'], item['dibayarkan_kepada'],
-    #                item['uraian'], item['nomer_bank_tertarik'], item['nomer_cek']]
-    #         ws.append(row)
-    #         row_num += 1
-    #
-    #     # Konversi file Excel ke HttpResponse
-    #     response = HttpResponse(content_type='application/vnd.ms-excel')
-    #     response['Content-Disposition'] = 'attachment; filename=BuktiKasKeluar.xlsx'
-    #     wb.save(response)
-    #
-    #     return response
-    #
-    # export_to_excel.short_description = 'Export to Excel'
+    def export_to_excel(self, request, queryset):
+        # Query data dari model BuktiKasKeluar
+        data = queryset.values('no_BKK', 'tanggal_BKK', 'ajuan_id', 'dibayarkan_kepada', 'uraian',
+                               'nomer_bank_tertarik', 'nomer_cek')
+
+        # Buat file Excel dan tambahkan header
+        wb = Workbook()
+        ws = wb.active
+        ws.append(['No.', 'No BKK', 'Tanggal BKK', 'Ajuan', 'Dibayarkan Kepada', 'Uraian', 'Nomer Bank',
+                   'Nomor Cek'])
+        row_num = 1
+
+        # Tambahkan data ke file Excel
+        for item in data:
+            row = [row_num, item['no_BKK'], item['tanggal_BKK'], item['ajuan_id'], item['dibayarkan_kepada'],
+                   item['uraian'], item['nomer_bank_tertarik'], item['nomer_cek']]
+            ws.append(row)
+            row_num += 1
+
+        # Konversi file Excel ke HttpResponse
+        response = HttpResponse(content_type='application/vnd.ms-excel')
+        response['Content-Disposition'] = 'attachment; filename=BuktiKasKeluar.xlsx'
+        wb.save(response)
+
+        return response
+
+    export_to_excel.short_description = 'Export to Excel'
 
     def export_as_pdf_global(self, request, queryset):
         response = HttpResponse(content_type='application/pdf')
@@ -324,14 +362,16 @@ class BuktiKasKeluarAdmin(admin.ModelAdmin):
     export_as_pdf_global.short_description = "Export selected as Global PDF"
 
 
+
 class AjuanAdmin(admin.ModelAdmin):
-    search_fields = ('nomor_pengajuan', 'nama_kegiatan', 'waktu_ajuan', 'total_ajuan')
+    search_fields = ('nomor_pengajuan', 'nama_kegiatan', 'waktu_ajuan', 'total_ajuan',)
     list_display = ['unit_ajuan','nomor_pengajuan',  'nama_kegiatan', 'waktu_ajuan', 'get_total_ajuan', 'penanggung_jawab', 'RAPT',  ]
     fields = ['unit_ajuan','nomor_pengajuan',  'nama_kegiatan', 'waktu_ajuan', 'total_ajuan', 'penanggung_jawab', 'RAPT',  ]
     readonly_fields = ['nomor_pengajuan', ]
     raw_id_fields = ['RAPT',]
     actions = ['export_as_pdf','export_to_excel']
     list_per_page = 20  # Jumlah item per halaman default
+    list_filter = (("waktu_ajuan", DateRangeFilterBuilder()),)
 
     def changelist_view(self, request, extra_context=None):
         if 'per_page' in request.GET:
@@ -346,40 +386,40 @@ class AjuanAdmin(admin.ModelAdmin):
         return babel.numbers.format_currency(obj.total_ajuan, 'IDR', locale='id_ID')
     get_total_ajuan.short_description = 'Total Ajuan'
 
-    # def export_to_excel(self, request, queryset):
-    #     # Query data dari model BuktiKasKeluar
-    #     data = queryset.values('unit_ajuan__unit_ajuan', 'nomor_pengajuan', 'nama_kegiatan', 'waktu_ajuan', 'total_ajuan', 'RAPT')
-    #
-    #     # Buat file Excel dan tambahkan header
-    #     wb = Workbook()
-    #     ws = wb.active
-    #     ws.append(['No.','Unit Ajuan','Nomor Pengajuan','Nama Kegiatan','Waktu Ajuan','Total Ajuan','RAPT'])
-    #     # set rata tengah pada header
-    #     header_row = ws[1]
-    #     for cell in header_row:
-    #         cell.alignment = Alignment(horizontal='center')
-    #
-    #     row_num = 1
-    #     # Tambahkan data ke file Excel
-    #     for item in data:
-    #         row = [row_num, item['unit_ajuan__unit_ajuan'], item['nomor_pengajuan'], item['nama_kegiatan'], item['waktu_ajuan'], item['total_ajuan'],
-    #                item['RAPT']]
-    #         ws.append(row)
-    #         row_num += 1
-    #
-    #         # Menyesuaikan lebar kolom secara otomatis
-    #         for column_cells in ws.columns:
-    #             length = max(len(str(cell.value)) for cell in column_cells)
-    #             ws.column_dimensions[column_cells[0].column_letter].width = length
-    #
-    #     # Konversi file Excel ke HttpResponse
-    #     response = HttpResponse(content_type='application/vnd.ms-excel')
-    #     response['Content-Disposition'] = 'attachment; filename=Ajuan.xlsx'
-    #      wb.save(response)
-    #
-    #     return response
-    #
-    # export_to_excel.short_description = 'Export to Excel'
+    def export_to_excel(self, request, queryset):
+        # Query data dari model BuktiKasKeluar
+        data = queryset.values('unit_ajuan__unit_ajuan', 'nomor_pengajuan', 'nama_kegiatan', 'waktu_ajuan', 'total_ajuan', 'RAPT')
+
+        # Buat file Excel dan tambahkan header
+        wb = Workbook()
+        ws = wb.active
+        ws.append(['No.','Unit Ajuan','Nomor Pengajuan','Nama Kegiatan','Waktu Ajuan','Total Ajuan','RAPT'])
+        # set rata tengah pada header
+        header_row = ws[1]
+        for cell in header_row:
+            cell.alignment = Alignment(horizontal='center')
+
+        row_num = 1
+        # Tambahkan data ke file Excel
+        for item in data:
+            row = [row_num, item['unit_ajuan__unit_ajuan'], item['nomor_pengajuan'], item['nama_kegiatan'], item['waktu_ajuan'], item['total_ajuan'],
+                   item['RAPT']]
+            ws.append(row)
+            row_num += 1
+
+            # Menyesuaikan lebar kolom secara otomatis
+            for column_cells in ws.columns:
+                length = max(len(str(cell.value)) for cell in column_cells)
+                ws.column_dimensions[column_cells[0].column_letter].width = length
+
+        # Konversi file Excel ke HttpResponse
+        response = HttpResponse(content_type='application/vnd.ms-excel')
+        response['Content-Disposition'] = 'attachment; filename=Ajuan.xlsx'
+        wb.save(response)
+
+        return response
+
+    export_to_excel.short_description = 'Export to Excel'
 
     def export_as_pdf(self, request, queryset):
         response = HttpResponse(content_type='application/pdf')
@@ -437,9 +477,6 @@ class AjuanAdmin(admin.ModelAdmin):
             ('WORDWRAP', (1, 0), (-1, -1), 100),
         ]))
 
-
-
-
         elements.append(table)
         doc.build(elements)
 
@@ -452,6 +489,9 @@ class AjuanInLineRAPT(admin.TabularInline):
     extra = 0
     fields = ['unit_ajuan','nomor_pengajuan',  'nama_kegiatan', 'waktu_ajuan', 'total_ajuan', 'penanggung_jawab']
     readonly_fields = fields
+    can_delete = False
+
+# class
 
 
 class RekapAjuanPengambilanTabunganAdmin(admin.ModelAdmin):
@@ -497,51 +537,6 @@ class RekapAjuanPengambilanTabunganAdmin(admin.ModelAdmin):
         return babel.numbers.format_currency(obj.jumlah, 'IDR', locale='id_ID')
     get_jumlah.short_description = 'Jumlah'
 
-    # def export_to_excel(self, request, queryset):
-    #     # Query data dari model Dana Masuk
-    #     data = queryset.values()
-    #
-    #     # Buat file Excel dan tambahkan header
-    #     wb = Workbook()
-    #     ws = wb.active
-    #     ws.append(['no_RAPT', 'jumlah'])
-    #
-    #     # Tambahkan data ke file Excel
-    #     for item in data:
-    #         row = [item['no_RAPT'], item['jumlah']]
-    #         ws.append(row)
-    #
-    #     # Konversi file Excel ke HttpResponse
-    #     response = HttpResponse(content_type='application/vnd.ms-excel')
-    #     response['Content-Disposition'] = 'attachment; filename=RAPT.xlsx'
-    #     wb.save(response)
-    #
-    #     return response
-    #
-    # export_to_excel.short_description = 'Export to Excel'
-
-    # def export_to_excel(self, request, queryset):
-    #     # Query data dari model Dana Masuk
-    #     data = queryset.values()
-    #
-    #     # Buat file Excel dan tambahkan header
-    #     wb = Workbook()
-    #     ws = wb.active
-    #     ws.append(['no_RAPT', 'jumlah'])
-    #
-    #     # Tambahkan data ke file Excel
-    #     for item in data:
-    #         row = [item['no_RAPT'], item['jumlah']]
-    #         ws.append(row)
-    #
-    #     # Konversi file Excel ke HttpResponse
-    #     response = HttpResponse(content_type='application/vnd.ms-excel')
-    #     response['Content-Disposition'] = 'attachment; filename=RAPT.xlsx'
-    #     wb.save(response)
-    #
-    #     return response
-    #
-    # export_to_excel.short_description = 'Export to Excel'
 
     def export_as_pdf(self, request, queryset):
         response = HttpResponse(content_type='application/pdf')
@@ -601,6 +596,7 @@ class CekAdmin(admin.ModelAdmin):
         models.ManyToManyField: {'widget': FilteredSelectMultiple('Ajuan', False)},
     }
     list_per_page = 20  # Jumlah item per halaman default
+    list_filter = (("tanggal", DateRangeFilterBuilder()),)
 
     def changelist_view(self, request, extra_context=None):
         if 'per_page' in request.GET:
@@ -656,7 +652,7 @@ class CekAdmin(admin.ModelAdmin):
         elements.append(title)
 
         row_num = 1
-        data = [['No.', 'Tanggal', 'No.Cek', 'Nomer Bank Tertarik','Ajuan', 'RPC', 'Total Ajuan']]
+        data = [['No.', 'Tanggal', 'No.Cek', 'Nomer Bank','Ajuan', 'RPC', 'Total Ajuan']]
 
         total_sum = 0  # Inisialisasi total
 
@@ -722,11 +718,7 @@ class CekInLineRPC(admin.TabularInline):
     extra = 0
     fields = ['no_cek', 'nomer_bank_tertarik','get_nama_kegiatan',]
     readonly_fields = fields
-
-    # def get_total_ajuan(self, obj):
-    #     return obj.ajuan.total_ajuan
-    #
-    # get_total_ajuan.short_description = 'Total Ajuan'
+    can_delete = False
 
     def get_nama_kegiatan(self, obj):
         return obj.ajuan.nama_kegiatan
@@ -740,8 +732,8 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
     inlines = [CekInLineRPC]
     actions = ['export_as_pdf', 'update_jumlah_RPC']
     list_display = ('no_RPC', 'get_jumlah', 'nomer_bank_tertarik', 'get_nama_kegiatan_from_rpc','get_total_ajuan')
-
     list_per_page = 20  # Jumlah item per halaman default
+
 
     def changelist_view(self, request, extra_context=None):
         if 'per_page' in request.GET:
@@ -823,6 +815,8 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
             return ", ".join(nomer_bank_tertarik_list)
         else:
             return '-'
+    nomer_bank_tertarik.short_description = 'Bank'
+
 
     def save_model(self, request, obj, form, change):
         if obj.pk:
@@ -854,7 +848,7 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
             elements.append(rpc_num)
 
             # Add table
-            data = [['NO.', 'NAMA KEGIATAN', 'TOTAL AJUAN', 'NO CEK', 'NOMER BANK TERTARIK']]
+            data = [['NO.', 'NAMA KEGIATAN', 'TOTAL AJUAN', 'NO CEK', 'NOMER BANK']]
             total = 0
             row_num = 1
             for cek in rpc.cek_set.all():
@@ -955,12 +949,22 @@ class BuktiKasKeluarInLineBankTertarik(admin.TabularInline):
     extra = 0
     fields = ['no_BKK','tanggal_BKK',  'ajuan', 'dibayarkan_kepada', 'uraian', 'nomer_cek', 'nomer_bank_tertarik']
     readonly_fields = fields
+    can_delete = False
 
 class BankTertarikAdmin(admin.ModelAdmin):
     inlines = [BuktiKasKeluarInLineBankTertarik]
 
+class AjuanInLineUnitAjuan(admin.TabularInline):
+    model = Ajuan
+    extra = 0
+    fields = ['nomor_pengajuan','nama_kegiatan',  'waktu_ajuan', 'penanggung_jawab', 'total_ajuan', 'RAPT']
+    readonly_fields = fields
+    can_delete = False
+class UnitAjuanAdmin(admin.ModelAdmin):
+    inlines = [AjuanInLineUnitAjuan]
 
-admin.site.register(UnitAjuan)
+
+admin.site.register(UnitAjuan, UnitAjuanAdmin)
 admin.site.register(BankTertarik, BankTertarikAdmin)
 admin.site.register(Ajuan, AjuanAdmin)
 admin.site.register(DanaMasuk, DanaMasukAdmin)
