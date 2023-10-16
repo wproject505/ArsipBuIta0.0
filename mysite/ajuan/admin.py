@@ -944,15 +944,22 @@ class RekapBankTertarikAdmin(admin.ModelAdmin):
     }
 
 
-class BuktiKasKeluarInLineBankTertarik(admin.TabularInline):
-    model = BuktiKasKeluar
+class CekInLineBankTertarik(admin.TabularInline):
+    model = Cek
     extra = 0
-    fields = ['no_BKK','tanggal_BKK',  'ajuan', 'dibayarkan_kepada', 'uraian', 'nomer_cek', 'nomer_bank_tertarik']
+    fields = ['tanggal','no_cek', 'nomer_bank_tertarik', 'RPC', 'total_cek',]
+    readonly_fields = fields
+    can_delete = False
+
+class DanaMasukInLineBankTertarik(admin.TabularInline):
+    model = DanaMasuk
+    extra = 0
+    fields = ['waktu_masuk','uraian', 'bank_penerima', 'total_dana',]
     readonly_fields = fields
     can_delete = False
 
 class BankTertarikAdmin(admin.ModelAdmin):
-    inlines = [BuktiKasKeluarInLineBankTertarik]
+        inlines = [CekInLineBankTertarik, DanaMasukInLineBankTertarik]
 
 class AjuanInLineUnitAjuan(admin.TabularInline):
     model = Ajuan
