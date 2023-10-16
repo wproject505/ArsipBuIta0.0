@@ -625,6 +625,7 @@ class CekAdmin(admin.ModelAdmin):
                     Q(is_selected=False) | Q(ceks_terkait=request._obj_)
                 )
             else:
+
                 kwargs['queryset'] = Ajuan.objects.filter(is_selected=False)
         return super().formfield_for_manytomany(db_field, request, **kwargs)
 
@@ -731,7 +732,7 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
     readonly_fields = ('no_RPC', 'jumlah',)
     inlines = [CekInLineRPC]
     actions = ['export_as_pdf', 'update_jumlah_RPC']
-    list_display = ('no_RPC', 'get_jumlah', 'nomer_bank_tertarik', 'get_nama_kegiatan_from_rpc','get_total_ajuan')
+    list_display = ('no_RPC', 'get_jumlah', 'nomer_bank_tertarik', 'get_nama_kegiatan_from_rpc','get_total_ajuan',)
     list_per_page = 20  # Jumlah item per halaman default
 
 
@@ -959,7 +960,14 @@ class DanaMasukInLineBankTertarik(admin.TabularInline):
     can_delete = False
 
 class BankTertarikAdmin(admin.ModelAdmin):
-        inlines = [CekInLineBankTertarik, DanaMasukInLineBankTertarik]
+    search_fields = ('nomer_bank_tertarik',)
+    inlines = [CekInLineBankTertarik, DanaMasukInLineBankTertarik]
+    # actions = ['export_as_pdf', 'export_as_excel']
+    # list_display = ('',)
+    list_per_page = 20
+
+
+
 
 class AjuanInLineUnitAjuan(admin.TabularInline):
     model = Ajuan
