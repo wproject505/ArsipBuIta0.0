@@ -1077,66 +1077,66 @@ class BankTertarikAdmin(admin.ModelAdmin):
 
     total_selisih_syc_bank.short_description = 'Selisih'
 
-    def export_as_pdf(self, request, queryset):
-        no_cek_data = self.no_cek_self
-        dana_masuk = self.dana_masuk_self
-        total_dana = self.total_dana_self
-        selsih = self.selisih_self
-        response = HttpResponse(content_type='application/pdf')
-        response['Content-Disposition'] = 'attachment; filename="BankTertarik.pdf"'
-
-        doc = SimpleDocTemplate(response, pagesize=landscape(letter))
-        elements = []
-
-        title_style = getSampleStyleSheet()['Heading1']
-        title_style.alignment = TA_CENTER
-        title = Paragraph('Daftar Bank Tertarik', style=title_style)
-        elements.append(title)
-
-        data = [['Nomer Bank Tertarik', 'No Cek', 'Pengeluaran', 'Dana Masuk', 'Total Selisih']]
-        total = 0
-        row_num = 1
-        for no_cek in no_cek_data:
-            data.append([no_cek])
-
-        table = Table(data, colWidths=[100, 100, 100, 100, 100])
-        table.setStyle(TableStyle([
-            # Your table styles here
-        ]))
-        elements.append(table)
-
-        doc.build(elements)
-        return response
-
-    export_as_pdf.short_description = "Export selected as PDF"
-
-    def export_as_excel(self, request, queryset):
-        response = HttpResponse(content_type='application/ms-excel')
-        response['Content-Disposition'] = 'attachment; filename="BankTertarik.xlsx"'
-
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = 'Bank Tertarik'
-
-        # Header row
-        headers = ['Nomer Bank Tertarik', 'No Cek', 'Pengeluaran', 'Dana Masuk', 'Total Selisih']
-        for col_num, header in enumerate(headers, 1):
-            col_letter = get_column_letter(col_num)
-            ws.cell(row=1, column=col_num, value=header)
-
-        for row_num, bank in enumerate(queryset, 2):
-            ws.cell(row=row_num, column=1, value=bank.nomer_bank_tertarik)
-            ws.cell(row=row_num, column=2, value=bank.no_cek_syc_bank_tertarik())
-            ws.cell(row=row_num, column=3, value=bank.total_cek_syc_bank_tertarik())
-            ws.cell(row=row_num, column=4, value=bank.dana_masuk_syc_bank_tertarik())
-            ws.cell(row=row_num, column=5, value=bank.total_selisih_syc_bank())
-
-        response['Content-Disposition'] = 'attachment; filename="BankTertarik.xlsx"'
-        wb.save(response)
-
-        return response
-
-    export_as_excel.short_description = "Export selected as Excel"
+    # def export_as_pdf(self, request, queryset):
+    #     no_cek_data = self.no_cek_self
+    #     dana_masuk = self.dana_masuk_self
+    #     total_dana = self.total_dana_self
+    #     selsih = self.selisih_self
+    #     response = HttpResponse(content_type='application/pdf')
+    #     response['Content-Disposition'] = 'attachment; filename="BankTertarik.pdf"'
+    #
+    #     doc = SimpleDocTemplate(response, pagesize=landscape(letter))
+    #     elements = []
+    #
+    #     title_style = getSampleStyleSheet()['Heading1']
+    #     title_style.alignment = TA_CENTER
+    #     title = Paragraph('Daftar Bank Tertarik', style=title_style)
+    #     elements.append(title)
+    #
+    #     data = [['Nomer Bank Tertarik', 'No Cek', 'Pengeluaran', 'Dana Masuk', 'Total Selisih']]
+    #     total = 0
+    #     row_num = 1
+    #     for no_cek in no_cek_data:
+    #         data.append([no_cek])
+    #
+    #     table = Table(data, colWidths=[100, 100, 100, 100, 100])
+    #     table.setStyle(TableStyle([
+    #         # Your table styles here
+    #     ]))
+    #     elements.append(table)
+    #
+    #     doc.build(elements)
+    #     return response
+    #
+    # export_as_pdf.short_description = "Export selected as PDF"
+    #
+    # def export_as_excel(self, request, queryset):
+    #     response = HttpResponse(content_type='application/ms-excel')
+    #     response['Content-Disposition'] = 'attachment; filename="BankTertarik.xlsx"'
+    #
+    #     wb = openpyxl.Workbook()
+    #     ws = wb.active
+    #     ws.title = 'Bank Tertarik'
+    #
+    #     # Header row
+    #     headers = ['Nomer Bank Tertarik', 'No Cek', 'Pengeluaran', 'Dana Masuk', 'Total Selisih']
+    #     for col_num, header in enumerate(headers, 1):
+    #         col_letter = get_column_letter(col_num)
+    #         ws.cell(row=1, column=col_num, value=header)
+    #
+    #     for row_num, bank in enumerate(queryset, 2):
+    #         ws.cell(row=row_num, column=1, value=bank.nomer_bank_tertarik)
+    #         ws.cell(row=row_num, column=2, value=bank.no_cek_syc_bank_tertarik())
+    #         ws.cell(row=row_num, column=3, value=bank.total_cek_syc_bank_tertarik())
+    #         ws.cell(row=row_num, column=4, value=bank.dana_masuk_syc_bank_tertarik())
+    #         ws.cell(row=row_num, column=5, value=bank.total_selisih_syc_bank())
+    #
+    #     response['Content-Disposition'] = 'attachment; filename="BankTertarik.xlsx"'
+    #     wb.save(response)
+    #
+    #     return response
+    #
+    # export_as_excel.short_description = "Export selected as Excel"
 
 
 class AjuanInLineUnitAjuan(admin.TabularInline):
