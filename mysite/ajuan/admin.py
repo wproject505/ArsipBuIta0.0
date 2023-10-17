@@ -1014,7 +1014,7 @@ class BankTertarikAdmin(admin.ModelAdmin):
     search_fields = ('nomer_bank_tertarik',)
     inlines = [CekInLineBankTertarik, DanaMasukInLineBankTertarik]
     # actions = ['export_as_pdf', 'export_as_excel']
-    list_display = ('nomer_bank_tertarik','no_cek_syc_bank_tertarik','total_cek_syc_bank_tertarik', 'dana_masuk_syc_bank_tertarik')
+    list_display = ('nomer_bank_tertarik','no_cek_syc_bank_tertarik','total_cek_syc_bank_tertarik', 'dana_masuk_syc_bank_tertarik','total_dana_syc_bank_tertarik')
     list_per_page = 20
 
     def no_cek_syc_bank_tertarik(self, bank_tertarik_obj):
@@ -1045,10 +1045,10 @@ class BankTertarikAdmin(admin.ModelAdmin):
 
     total_cek_syc_bank_tertarik.short_description = 'Pengeluaran'
 
-    def dana_masuk_syc_bank_tertarik(self, bank_tertarik_obj):
+    def dana_masuk_syc_bank_tertarik(self, bank_pererima_obj):
         dana_masuk = []
-        dana_masuk_to_bank_tertarik = DanaMasuk.objects.filter(bank_penerima=bank_tertarik_obj)
-        for danamasuk in dana_masuk_to_bank_tertarik:
+        dana_masuk_to_bank_penerima = DanaMasuk.objects.filter(bank_penerima=bank_pererima_obj)
+        for danamasuk in dana_masuk_to_bank_penerima:
             dana_masuk.append(danamasuk.uraian)
 
         if dana_masuk:
@@ -1057,6 +1057,22 @@ class BankTertarikAdmin(admin.ModelAdmin):
             return '-'
 
     dana_masuk_syc_bank_tertarik.short_description = 'Dana Masuk'
+
+    def total_dana_syc_bank_tertarik(self, bank_pererima_obj):
+        dana_masuk = []
+        dana_masuk_to_bank_penerima = DanaMasuk.objects.filter(bank_penerima=bank_pererima_obj)
+        for danamasuk in dana_masuk_to_bank_penerima:
+            dana_masuk.append(danamasuk.total_dana)
+
+        # Menghitung total
+        total = sum(dana_masuk)
+
+        # Mengonversi total ke format Rupiah
+        total_rupiah = babel.numbers.format_currency(total, 'IDR', locale='id_ID')
+
+        return total_rupiah if total else '-'
+
+    total_dana_syc_bank_tertarik.short_description = 'Pemasukkan'
 
 
 class AjuanInLineUnitAjuan(admin.TabularInline):
