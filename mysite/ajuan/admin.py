@@ -591,7 +591,7 @@ class CekAdmin(admin.ModelAdmin):
     raw_id_fields = ('RPC',)
     search_fields = ('no_cek','nomer_bank_tertarik__nomer_bank_tertarik','RPC__no_RPC',)
     list_display = ('tanggal', 'no_cek', 'nomer_bank_tertarik', 'display_many_to_many', 'get_total_cek', 'RPC',)
-    actions = ["export_as_pdf","save_all_selected"]
+    actions = ["export_as_pdf","export_as_excel","save_all_selected"]
     formfield_overrides = {
         models.ManyToManyField: {'widget': FilteredSelectMultiple('Ajuan', False)},
     }
@@ -718,6 +718,64 @@ class CekAdmin(admin.ModelAdmin):
         return response
 
     export_as_pdf.short_description = "Export selected as PDF"
+
+    def export_as_excel(self, request, queryset):
+        response = HttpResponse(content_type='application/ms-excel')
+        response['Content-Disposition'] = 'attachment; filename="Cek.xlsx"'
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'Cek Data'
+
+        columns = ['No.', 'Tanggal', 'No.Cek', 'Nomer Bank', 'Ajuan', 'RPC', 'Total Ajuan']
+
+        font_bold = Font(bold=True)
+
+        for col_num, column_title in enumerate(columns, 1):
+            col_letter = get_column_letter(col_num)
+            cell = ws.cell(row=1, column=col_num)
+            cell.value = column_title
+            cell.font = font_bold
+
+        row_num = 2
+        total_sum = 0
+
+        for cek in queryset:
+            if cek:
+                ajuans = ", ".join(str(ajuan.nomor_pengajuan) for ajuan in cek.ajuan_terkait.all())
+                if cek.total_cek is not None:
+                    formatted_total_cek = format_currency(cek.total_cek, 'IDR', locale='id_ID')
+                    total_sum += cek.total_cek
+                else:
+                    formatted_total_cek = "-"
+
+                # Check if 'nomer_bank_tertarik' has the 'no_RPC' attribute
+                if hasattr(cek.nomer_bank_tertarik, 'no_RPC'):
+                    no_rpc = cek.nomer_bank_tertarik.no_RPC
+                else:
+                    no_rpc = None
+
+                row = [row_num - 1, cek.tanggal, cek.no_cek, no_rpc, ajuans, formatted_total_cek]
+
+                # Iterate over the row data and write it to the worksheet
+                for col_num, cell_value in enumerate(row, 1):
+                    cell = ws.cell(row=row_num, column=col_num)
+                    cell.value = cell_value
+
+                row_num += 1
+
+        total_row = ['Total', '', '', '', '', '', format_currency(total_sum, 'IDR', locale='id_ID')]
+        for col_num, cell_value in enumerate(total_row, 1):
+            cell = ws.cell(row=row_num, column=col_num)
+            cell.value = cell_value
+            cell.font = font_bold
+
+        response['Content-Disposition'] = 'attachment; filename="Cek.xlsx"'
+        wb.save(response)
+
+        return response
+
+    export_as_excel.short_description = "Export selected as Excel"
 
 
 class CekInLineRPC(admin.TabularInline):
