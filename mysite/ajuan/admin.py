@@ -973,29 +973,6 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
 
     export_as_excel.short_description = "Export selected as Excel"
 
-
-# class RekapBankTertarikAdmin(admin.ModelAdmin):
-#     search_fields = ('no_RBT',)
-#     raw_id_fields = ['dana_masuk','no_cek' ]
-#     list_per_page = 20  # Jumlah item per halaman default
-#
-#     def changelist_view(self, request, extra_context=None):
-#         if 'per_page' in request.GET:
-#             per_page = int(request.GET['per_page'])
-#             if per_page > 0:
-#                 self.list_per_page = per_page
-#             else:
-#                 self.list_per_page = self.list_max_show_all
-#         return super().changelist_view(request, extra_context=extra_context)
-#
-#     def display_ajuan(self, obj):
-#         return ', '.join([ajuan.nomor_pengajuan for ajuan in obj.ajuan.all()])
-#     list_display = ('no_RBT', 'tanggal','no_cek', 'dana_masuk','dana_keluar')
-#     formfield_overrides = {
-#         models.ManyToManyField: {'widget': FilteredSelectMultiple('Sumber', False)},
-#     }
-
-
 class CekInLineBankTertarik(admin.TabularInline):
     model = Cek
     extra = 0
@@ -1014,7 +991,7 @@ class BankTertarikAdmin(admin.ModelAdmin):
     search_fields = ('nomer_bank_tertarik',)
     inlines = [CekInLineBankTertarik, DanaMasukInLineBankTertarik]
     # actions = ['export_as_pdf', 'export_as_excel']
-    list_display = ('nomer_bank_tertarik','no_cek_syc_bank_tertarik','total_cek_syc_bank_tertarik', 'dana_masuk_syc_bank_tertarik','total_dana_syc_bank_tertarik')
+    list_display = ('nomer_bank_tertarik','no_cek_syc_bank_tertarik','total_cek_syc_bank_tertarik', 'dana_masuk_syc_bank_tertarik','total_dana_syc_bank_tertarik','total_selisih_syc_bank')
     list_per_page = 20
 
     def no_cek_syc_bank_tertarik(self, bank_tertarik_obj):
@@ -1073,6 +1050,27 @@ class BankTertarikAdmin(admin.ModelAdmin):
         return total_rupiah if total else '-'
 
     total_dana_syc_bank_tertarik.short_description = 'Pemasukkan'
+
+    def total_selisih_syc_bank(self, bank_pererima_obj):
+        # Menghitung total pemasukkan
+        total_pemasukkan = \
+        DanaMasuk.objects.filter(bank_penerima=bank_pererima_obj).aggregate(total_pemasukkan=Sum('total_dana'))[
+            'total_pemasukkan'] or 0
+
+        # Menghitung total pengeluaran
+        total_pengeluaran = \
+        Cek.objects.filter(nomer_bank_tertarik=bank_pererima_obj).aggregate(total_pengeluaran=Sum('total_cek'))[
+            'total_pengeluaran'] or 0
+
+        # Menghitung selisih (pengurangan)
+        selisih = total_pemasukkan - total_pengeluaran
+
+        # Mengonversi selisih ke format Rupiah
+        selisih_rupiah = babel.numbers.format_currency(selisih, 'IDR', locale='id_ID')
+
+        return selisih_rupiah if selisih else '-'
+
+    total_selisih_syc_bank.short_description = 'Selisih'
 
 
 class AjuanInLineUnitAjuan(admin.TabularInline):
