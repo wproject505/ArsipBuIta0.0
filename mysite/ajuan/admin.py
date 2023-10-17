@@ -737,8 +737,8 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
     search_fields = ('no_RPC',)
     readonly_fields = ('no_RPC', 'jumlah',)
     inlines = [CekInLineRPC]
-    actions = ['export_as_pdf', 'update_jumlah_RPC']
-    list_display = ('no_RPC', 'get_jumlah', 'nomer_bank_tertarik', 'get_nama_kegiatan_from_rpc','get_total_ajuan',)
+    actions = ['export_as_pdf','export_as_excel', 'update_jumlah_RPC']
+    list_display = ('no_RPC','tanggal_syc_cek', 'get_jumlah', 'nomer_bank_tertarik', 'get_nama_kegiatan_from_rpc','get_total_ajuan',)
     list_per_page = 20  # Jumlah item per halaman default
 
 
@@ -765,6 +765,14 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
         self.message_user(request, f'Successfully updated {queryset.count()} Rekap Pencairan Cek(s).')
 
     update_jumlah_RPC.short_description = 'Update Jumlah RPC'
+
+    def tanggal_syc_cek(self, rpc_obj):
+        ceks_related_to_rpc = Cek.objects.filter(RPC=rpc_obj)
+        if ceks_related_to_rpc.exists():
+            return ceks_related_to_rpc.first().tanggal  # Mengambil tanggal dari objek pertama dalam queryset
+        else:
+            return None  # Mengembalikan None jika tidak ada objek Cek yang terkait
+    tanggal_syc_cek.short_description = 'Tanggal'
 
     def get_nama_kegiatan_from_rpc(self, rpc_obj):
         nama_kegiatan_list = []
@@ -840,7 +848,7 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
         response = HttpResponse(content_type='application/pdf')
         response['Content-Disposition'] = 'attachment; filename="RPC.pdf"'
 
-        doc = SimpleDocTemplate(response, pagesize=landscape(letter))
+        doc = SimpleDocTemplate(response, pagesize=landscape(A4), leftMargin=10, rightMargin=5, topMargin=5, bottomMargin=5)
         elements = []
 
         # Add title
@@ -855,32 +863,35 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
             elements.append(rpc_num)
 
             # Add table
-            data = [['NO.', 'NAMA KEGIATAN', 'TOTAL AJUAN', 'NO CEK', 'NOMER BANK']]
+            data = [['NO.','TANGGAL', 'NAMA KEGIATAN', 'TOTAL AJUAN', 'NO CEK', 'NOMER BANK']]
             total = 0
             row_num = 1
             for cek in rpc.cek_set.all():
                 for ajuan in cek.ajuan_terkait.all():  # Akses ajuan melalui ManyToMany
                     row = [
                         row_num,
+                        cek.tanggal,
                         ajuan.nama_kegiatan if ajuan else 'Batal',
                         babel.numbers.format_currency(ajuan.total_ajuan, 'IDR', locale='id_ID') if ajuan else '',
                         cek.no_cek,
                         cek.nomer_bank_tertarik,
+
                     ]
                     data.append(row)
                     row_num += 1
                     if ajuan:
                         total += ajuan.total_ajuan
 
-            data.append(['JUMLAH', '', babel.numbers.format_currency(total, 'IDR', locale='id_ID')])
+            data.append(['', 'JUMLAH', '',babel.numbers.format_currency(total, 'IDR', locale='id_ID')])
 
             # Create table
-            table = Table(data,colWidths=[70, 250, 150, 130, 130])
+            table = Table(data, colWidths=[30,70, 300, 150, 80, 150])  # Atur lebar kolom di sini
             table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('ALIGN', (1, 1), (1, -2), 'LEFT'),  # Set "NAMA KEGIATAN" in the second row to align left
+                ('ALIGN', (2, 1), (2, -2), 'LEFT'),
+                ('ALIGN', (3, 1), (3, -2), 'RIGHT'),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('FONTSIZE', (0, 0), (-1, 0), 10),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
@@ -929,26 +940,60 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
 
     export_as_pdf.short_description = "Export selected as PDF"
 
-class RekapBankTertarikAdmin(admin.ModelAdmin):
-    search_fields = ('no_RBT',)
-    raw_id_fields = ['dana_masuk','no_cek' ]
-    list_per_page = 20  # Jumlah item per halaman default
+    from openpyxl import Workbook
+    from django.http import HttpResponse
 
-    def changelist_view(self, request, extra_context=None):
-        if 'per_page' in request.GET:
-            per_page = int(request.GET['per_page'])
-            if per_page > 0:
-                self.list_per_page = per_page
-            else:
-                self.list_per_page = self.list_max_show_all
-        return super().changelist_view(request, extra_context=extra_context)
+    def export_as_excel(modeladmin, request, queryset):
+        # Membuat workbook dan worksheet baru
+        wb = Workbook()
+        ws = wb.active
 
-    def display_ajuan(self, obj):
-        return ', '.join([ajuan.nomor_pengajuan for ajuan in obj.ajuan.all()])
-    list_display = ('no_RBT', 'tanggal','no_cek', 'dana_masuk','dana_keluar')
-    formfield_overrides = {
-        models.ManyToManyField: {'widget': FilteredSelectMultiple('Sumber', False)},
-    }
+        # Menambahkan header ke worksheet
+        header = ['NO', 'TANGGAL', 'NAMA KEGIATAN', 'TOTAL AJUAN', 'NO CEK', 'NOMER BANK']
+        ws.append(header)
+
+        # Menambahkan data dari queryset ke worksheet
+        for index, rpc in enumerate(queryset, start=1):
+            for cek in rpc.cek_set.all():
+                for ajuan in cek.ajuan_terkait.all():
+                    row_data = row_data = [index, cek.tanggal, ajuan.nama_kegiatan if ajuan else 'Batal', ajuan.total_ajuan if ajuan else '', cek.no_cek, cek.nomer_bank_tertarik.nomer_bank_tertarik]
+                    ws.append(row_data)
+
+        # Mengatur nama file
+        filename = "RPC.xlsx"
+
+        # Membuat response Excel
+        response = HttpResponse(content_type='application/ms-excel')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        # Menyimpan workbook ke response
+        wb.save(response)
+
+        return response
+
+    export_as_excel.short_description = "Export selected as Excel"
+
+
+# class RekapBankTertarikAdmin(admin.ModelAdmin):
+#     search_fields = ('no_RBT',)
+#     raw_id_fields = ['dana_masuk','no_cek' ]
+#     list_per_page = 20  # Jumlah item per halaman default
+#
+#     def changelist_view(self, request, extra_context=None):
+#         if 'per_page' in request.GET:
+#             per_page = int(request.GET['per_page'])
+#             if per_page > 0:
+#                 self.list_per_page = per_page
+#             else:
+#                 self.list_per_page = self.list_max_show_all
+#         return super().changelist_view(request, extra_context=extra_context)
+#
+#     def display_ajuan(self, obj):
+#         return ', '.join([ajuan.nomor_pengajuan for ajuan in obj.ajuan.all()])
+#     list_display = ('no_RBT', 'tanggal','no_cek', 'dana_masuk','dana_keluar')
+#     formfield_overrides = {
+#         models.ManyToManyField: {'widget': FilteredSelectMultiple('Sumber', False)},
+#     }
 
 
 class CekInLineBankTertarik(admin.TabularInline):
@@ -969,10 +1014,49 @@ class BankTertarikAdmin(admin.ModelAdmin):
     search_fields = ('nomer_bank_tertarik',)
     inlines = [CekInLineBankTertarik, DanaMasukInLineBankTertarik]
     # actions = ['export_as_pdf', 'export_as_excel']
-    # list_display = ('',)
+    list_display = ('nomer_bank_tertarik','no_cek_syc_bank_tertarik','total_cek_syc_bank_tertarik', 'dana_masuk_syc_bank_tertarik')
     list_per_page = 20
 
+    def no_cek_syc_bank_tertarik(self, bank_tertarik_obj):
+        no_cek = []
+        cek_related_to_bank_tertarik = Cek.objects.filter(nomer_bank_tertarik=bank_tertarik_obj)
+        for cek in cek_related_to_bank_tertarik:
+            no_cek.append(cek.no_cek)
 
+        if no_cek:
+            return ", ".join(no_cek)
+        else:
+            return '-'
+
+    no_cek_syc_bank_tertarik.short_description = 'No Cek'
+    def total_cek_syc_bank_tertarik(self, bank_tertarik_obj):
+        total_cek = []
+        cek_related_to_bank_tertarik = Cek.objects.filter(nomer_bank_tertarik=bank_tertarik_obj)
+        for cek in cek_related_to_bank_tertarik:
+            total_cek.append(cek.total_cek)
+
+        # Menghitung total
+        total = sum(total_cek)
+
+        # Mengonversi total ke format Rupiah
+        total_rupiah = babel.numbers.format_currency(total, 'IDR', locale='id_ID')
+
+        return total_rupiah if total else '-'
+
+    total_cek_syc_bank_tertarik.short_description = 'Pengeluaran'
+
+    def dana_masuk_syc_bank_tertarik(self, bank_tertarik_obj):
+        dana_masuk = []
+        dana_masuk_to_bank_tertarik = DanaMasuk.objects.filter(bank_penerima=bank_tertarik_obj)
+        for danamasuk in dana_masuk_to_bank_tertarik:
+            dana_masuk.append(danamasuk.uraian)
+
+        if dana_masuk:
+            return ", ".join(dana_masuk)
+        else:
+            return '-'
+
+    dana_masuk_syc_bank_tertarik.short_description = 'Dana Masuk'
 
 
 class AjuanInLineUnitAjuan(admin.TabularInline):
@@ -983,7 +1067,6 @@ class AjuanInLineUnitAjuan(admin.TabularInline):
     can_delete = False
 class UnitAjuanAdmin(admin.ModelAdmin):
     inlines = [AjuanInLineUnitAjuan]
-
 
 admin.site.register(UnitAjuan, UnitAjuanAdmin)
 admin.site.register(BankTertarik, BankTertarikAdmin)

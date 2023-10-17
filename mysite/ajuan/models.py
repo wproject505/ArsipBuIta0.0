@@ -78,6 +78,7 @@ class RekapPencairanCek(models.Model):
         super().save(*args, **kwargs)
 
 
+
 class Ajuan(models.Model):
     unit_ajuan = models.ForeignKey(UnitAjuan, null=True, on_delete=models.SET_NULL)
     nomor_pengajuan = models.CharField(max_length=50,  null=True, blank=True, help_text="nomor pengajuan akan terisi otomatis")
@@ -209,15 +210,7 @@ def update_nomer_bank_tertarik(sender, instance, **kwargs):
 # Register the signal
 pre_save.connect(update_nomer_bank_tertarik, sender=BuktiKasKeluar)
 
-class RekapBankTertarik(models.Model):
-    no_RBT = models.CharField(max_length=50, blank=True, help_text="nomor RBT akan terisi otomatis")
-    tanggal = models.DateField(null=True)
-    no_cek = models.ForeignKey(Cek, null=True, blank=True, on_delete=models.SET_NULL)
-    dana_masuk = models.ForeignKey(DanaMasuk, null=True, blank=True, on_delete=models.SET_NULL)
-    dana_keluar = models.DecimalField(max_digits=20, decimal_places=0)
 
-    class Meta:
-        verbose_name_plural = 'Rekap Bank Tertarik'
 
 
 
