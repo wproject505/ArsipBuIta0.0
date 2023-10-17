@@ -156,6 +156,16 @@ def update_ajuan_and_total_cek(sender, instance, action, pk_set, **kwargs):
     instance.total_cek = total_cek or 0
     instance.save()
 
+@receiver(pre_save, sender=Cek)
+def sync_ajuan_terkait(sender, instance, **kwargs):
+    # Logika sinkronisasi
+    if instance.ajuan_terkait.exists():
+        # Dapatkan objek terkait pertama jika ada
+        ajuan_pertama = instance.ajuan_terkait.first()
+        instance.tanggal = ajuan_pertama.waktu_ajuan
+
+pre_save.connect(sync_ajuan_terkait, sender=Cek)
+
 class BuktiKasKeluar(models.Model):
     no_BKK = models.CharField(max_length=50, blank=True, help_text="nomor BKK akan terisi otomatis")
     tanggal_BKK = models.DateField(null=True)
@@ -208,6 +218,8 @@ class RekapBankTertarik(models.Model):
 
     class Meta:
         verbose_name_plural = 'Rekap Bank Tertarik'
+
+
 
 
 

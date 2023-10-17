@@ -589,14 +589,20 @@ from django.http import HttpResponse
 from django.db.models import Q
 class CekAdmin(admin.ModelAdmin):
     raw_id_fields = ('RPC',)
-    search_fields = ('no_cek',)
+    search_fields = ('no_cek','nomer_bank_tertarik__nomer_bank_tertarik','RPC__no_RPC',)
     list_display = ('tanggal', 'no_cek', 'nomer_bank_tertarik', 'display_many_to_many', 'get_total_cek', 'RPC',)
-    actions = ["export_as_pdf"]
+    actions = ["export_as_pdf","save_all_selected"]
     formfield_overrides = {
         models.ManyToManyField: {'widget': FilteredSelectMultiple('Ajuan', False)},
     }
     list_per_page = 20  # Jumlah item per halaman default
     list_filter = (("tanggal", DateRangeFilterBuilder()),)
+
+    def save_all_selected(modeladmin, request, queryset):
+        for obj in queryset:
+            obj.save()
+
+    save_all_selected.short_description = "Update Data"
 
     def changelist_view(self, request, extra_context=None):
         if 'per_page' in request.GET:
