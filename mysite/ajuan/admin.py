@@ -1369,7 +1369,6 @@ admin.site.register(BuktiKasKeluar, BuktiKasKeluarAdmin)
 admin.site.register(RekapPencairanCek, RekapPencairanCekAdmin)
 admin.site.register(RekapAjuanPengambilanTabungan, RekapAjuanPengambilanTabunganAdmin)
 admin.site.register(Cek, CekAdmin)
-# admin.site.register(RekapBankTertarik, RekapBankTertarikAdmin)
 admin.site.site_header = 'Sistem Ajuan Bu Ita'
 admin.site.site_title = 'Selamat Datang di Sistem Ajuan Bu Ita'
 admin.site.index_title = 'Selamat datang di Dashboard Sistem Ajuan Bu Ita'
