@@ -1,5 +1,6 @@
 import babel
 import openpyxl
+from django.shortcuts import get_object_or_404
 from openpyxl.styles import Alignment
 from openpyxl.utils import get_column_letter
 from openpyxl.workbook import Workbook
@@ -790,15 +791,33 @@ class CekInLineRPC(admin.TabularInline):
 
     get_total_nama_kegiatan_description = 'Nama Kegiatan'
 
+from reportlab.pdfgen import canvas
 
 class RekapPencairanCekAdmin(admin.ModelAdmin):
-    search_fields = ('no_RPC',)
+    search_fields = ('no_RPC','jumlah')
     readonly_fields = ('no_RPC', 'jumlah',)
     inlines = [CekInLineRPC]
-    actions = ['export_as_pdf','export_as_excel', 'update_jumlah_RPC']
-    list_display = ('no_RPC','tanggal_syc_cek', 'get_jumlah', 'nomer_bank_tertarik', 'get_nama_kegiatan_from_rpc','get_total_ajuan',)
+    actions = ['export_as_pdf','export_as_excel', 'update_jumlah_RPC', 'export_as_pdf2']
+    list_display = ('no_RPC','tanggal_syc_cek', 'get_jumlah','nomor_cek', 'nomer_bank_tertarik', 'get_nama_kegiatan_from_rpc','get_total_ajuan',)
     list_per_page = 20  # Jumlah item per halaman default
 
+
+    def get_search_results(self, request, queryset, search_term):
+        # Pemrosesan pencarian dalam model saat ini (RekapPencairanCek)
+        results, use_distinct = super().get_search_results(request, queryset, search_term)
+
+        # Pemrosesan pencarian dalam model Cek berdasarkan ForeignKey (RPC)
+        cek_results = Cek.objects.filter(
+            Q(nomer_bank_tertarik__nomer_bank_tertarik__icontains=search_term) |
+            Q(ajuan_terkait__nama_kegiatan__icontains=search_term)  |
+            Q(ajuan_terkait__total_ajuan__icontains=search_term)
+        )
+        cek_results = cek_results.values_list('RPC__id', flat=True)  # Ambil ID yang sesuai
+
+        # Gabungkan hasil pencarian dari model saat ini dan model Cek
+        results |= queryset.filter(id__in=cek_results)
+
+        return results, use_distinct
 
     def changelist_view(self, request, extra_context=None):
         if 'per_page' in request.GET:
@@ -889,6 +908,16 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
         else:
             return '-'
     nomer_bank_tertarik.short_description = 'Bank'
+
+    def nomor_cek(self, obj):
+        nomor_cek = []
+        for cek in obj.cek_set.all():
+            nomor_cek.append(str(cek.no_cek))
+        if nomor_cek:
+            return ", ".join(nomor_cek)
+        else:
+            return '-'
+    nomer_bank_tertarik.short_description = 'No Cek'
 
 
     def save_model(self, request, obj, form, change):
@@ -1045,12 +1074,29 @@ class DanaMasukInLineBankTertarik(admin.TabularInline):
     readonly_fields = fields
     can_delete = False
 
+from django.http import FileResponse
+
 class BankTertarikAdmin(admin.ModelAdmin):
     search_fields = ('nomer_bank_tertarik',)
     inlines = [CekInLineBankTertarik, DanaMasukInLineBankTertarik]
     actions = ['export_as_pdf', 'export_as_excel']
     list_display = ('nomer_bank_tertarik','no_cek_syc_bank_tertarik','total_cek_syc_bank_tertarik', 'dana_masuk_syc_bank_tertarik','total_dana_syc_bank_tertarik','total_selisih_syc_bank')
     list_per_page = 20
+
+    def get_search_results(self, request, queryset, search_term):
+        # Pemrosesan pencarian dalam model saat ini (RekapPencairanCek)
+        results, use_distinct = super().get_search_results(request, queryset, search_term)
+
+        # Pemrosesan pencarian dalam model Cek berdasarkan ForeignKey (RPC)
+        cek_results = Cek.objects.filter(
+            Q(no_cek__icontains=search_term)
+        )
+        cek_results = cek_results.values_list('nomer_bank_tertarik__id', flat=True)  # Ambil ID yang sesuai
+
+        # Gabungkan hasil pencarian dari model saat ini dan model Cek
+        results |= queryset.filter(id__in=cek_results)
+
+        return results, use_distinct
 
     def no_cek_syc_bank_tertarik(self, bank_tertarik_obj):
         no_cek = []
@@ -1135,66 +1181,175 @@ class BankTertarikAdmin(admin.ModelAdmin):
 
     total_selisih_syc_bank.short_description = 'Selisih'
 
-    # def export_as_pdf(self, request, queryset):
-    #     no_cek_data = self.no_cek_self
-    #     dana_masuk = self.dana_masuk_self
-    #     total_dana = self.total_dana_self
-    #     selsih = self.selisih_self
-    #     response = HttpResponse(content_type='application/pdf')
-    #     response['Content-Disposition'] = 'attachment; filename="BankTertarik.pdf"'
-    #
-    #     doc = SimpleDocTemplate(response, pagesize=landscape(letter))
-    #     elements = []
-    #
-    #     title_style = getSampleStyleSheet()['Heading1']
-    #     title_style.alignment = TA_CENTER
-    #     title = Paragraph('Daftar Bank Tertarik', style=title_style)
-    #     elements.append(title)
-    #
-    #     data = [['Nomer Bank Tertarik', 'No Cek', 'Pengeluaran', 'Dana Masuk', 'Total Selisih']]
-    #     total = 0
-    #     row_num = 1
-    #     for no_cek in no_cek_data:
-    #         data.append([no_cek])
-    #
-    #     table = Table(data, colWidths=[100, 100, 100, 100, 100])
-    #     table.setStyle(TableStyle([
-    #         # Your table styles here
-    #     ]))
-    #     elements.append(table)
-    #
-    #     doc.build(elements)
-    #     return response
-    #
-    # export_as_pdf.short_description = "Export selected as PDF"
-    #
-    # def export_as_excel(self, request, queryset):
-    #     response = HttpResponse(content_type='application/ms-excel')
-    #     response['Content-Disposition'] = 'attachment; filename="BankTertarik.xlsx"'
-    #
-    #     wb = openpyxl.Workbook()
-    #     ws = wb.active
-    #     ws.title = 'Bank Tertarik'
-    #
-    #     # Header row
-    #     headers = ['Nomer Bank Tertarik', 'No Cek', 'Pengeluaran', 'Dana Masuk', 'Total Selisih']
-    #     for col_num, header in enumerate(headers, 1):
-    #         col_letter = get_column_letter(col_num)
-    #         ws.cell(row=1, column=col_num, value=header)
-    #
-    #     for row_num, bank in enumerate(queryset, 2):
-    #         ws.cell(row=row_num, column=1, value=bank.nomer_bank_tertarik)
-    #         ws.cell(row=row_num, column=2, value=bank.no_cek_syc_bank_tertarik())
-    #         ws.cell(row=row_num, column=3, value=bank.total_cek_syc_bank_tertarik())
-    #         ws.cell(row=row_num, column=4, value=bank.dana_masuk_syc_bank_tertarik())
-    #         ws.cell(row=row_num, column=5, value=bank.total_selisih_syc_bank())
-    #
-    #     response['Content-Disposition'] = 'attachment; filename="BankTertarik.xlsx"'
-    #     wb.save(response)
-    #
-    #     return response
-    #
-    # export_as_excel.short_description = "Export selected as Excel"
+    def export_as_pdf(self, request, queryset):
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="Bank.pdf"'
+
+        doc = SimpleDocTemplate(response, pagesize=landscape(A4), leftMargin=10, rightMargin=5, topMargin=5,
+                                bottomMargin=5)
+        elements = []
+
+        # Add title
+        title_style = getSampleStyleSheet()['Heading1']
+        title_style.alignment = TA_CENTER
+        title = Paragraph('Bank', style=title_style)
+        elements.append(title)
+
+        for bank in queryset:
+            # Add RPC number
+            bank_num = Paragraph('Nama Bank ' + str(bank.nomer_bank_tertarik), style=getSampleStyleSheet()['Heading2'])
+            elements.append(bank_num)
+
+            # Add table
+            data = [['NO', 'NO CEK', 'PENGELUARAN','DANA MASUK', 'PEMASUKKAN']]
+            total_cek = 0
+            total_dana = 0
+            row_num = 1
+            for cek in Cek.objects.filter(nomer_bank_tertarik=bank):
+                row = [
+                    row_num,
+                    cek.no_cek,
+                    babel.numbers.format_currency(cek.total_cek, 'IDR', locale='id_ID') if cek.total_cek else '',
+                    '',
+                    '',
+                ]
+                data.append(row)
+                row_num += 1
+                if cek.total_cek:
+                    total_cek += cek.total_cek
+
+            for dana in DanaMasuk.objects.filter(bank_penerima=bank):
+                row = [
+                    row_num,
+                    '',
+                    '',
+                    dana.uraian,
+                    babel.numbers.format_currency(dana.total_dana, 'IDR', locale='id_ID'),
+                ]
+                data.append(row)
+                row_num += 1
+                if dana.total_dana:
+                    total_dana += dana.total_dana
+
+            total = total_dana - total_cek  # Hitung total
+
+            data.append(['','Total Cek', babel.numbers.format_currency(total_cek, 'IDR', locale='id_ID'),'Total Dana Masuk', babel.numbers.format_currency(total_dana, 'IDR', locale='id_ID')])
+            data.append(['','SELISIH', '','', babel.numbers.format_currency(total, 'IDR', locale='id_ID')])
+
+            # Create table
+            table = Table(data, colWidths=[30, 150, 150, 150, 150,])
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                # ('ALIGN', (2, 1), (2, -2), 'LEFT'),
+                # ('ALIGN', (3, 1), (3, -2), 'RIGHT'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.aliceblue),
+                ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('WORDWRAP', (1, 0), (-1, -1), 100),
+            ]))
+            elements.append(table)
+
+        doc.build(elements)
+        return response
+
+    export_as_pdf.short_description = "Export selected as PDF"
+
+    def export_as_excel(self, request, queryset):
+        response = HttpResponse(content_type='application/ms-excel')
+        response['Content-Disposition'] = 'attachment; filename="Bank.xlsx"'
+
+        # Inisialisasi buku kerja Excel
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Bank"
+
+        # Tambahkan judul
+        title_font = Font(name='Helvetica-Bold', size=16)
+        title = "Bank"
+        title_cell = ws.cell(row=1, column=1)
+        title_cell.value = title
+        title_cell.font = title_font
+        title_cell.alignment = openpyxl.styles.Alignment(horizontal="center")
+        ws.merge_cells('A1:E1')
+
+        # Header kolom
+        headers = ["NO", "NO CEK", "PENGELUARAN", "DANA MASUK", "PEMASUKKAN"]
+        for col_num, header in enumerate(headers, 1):
+            col_letter = get_column_letter(col_num)
+            cell = ws["{}2".format(col_letter)]
+            cell.value = header
+            cell.font = Font(bold=True)
+            cell.alignment = openpyxl.styles.Alignment(horizontal="center")
+
+        # Data dari queryset
+        row_num = 3
+        for bank in queryset:
+            # Add table data
+            total_cek = 0
+            total_dana = 0
+
+            for cek in Cek.objects.filter(nomer_bank_tertarik=bank):
+                row = [
+                    row_num - 2,
+                    cek.no_cek,
+                    cek.total_cek,
+                    None,  # Kosongi kolom DANA MASUK
+                    None,  # Kosongi kolom PEMASUKKAN
+                ]
+                ws.append(row)
+                if cek.total_cek:
+                    total_cek += cek.total_cek
+                row_num += 1
+
+            for dana in DanaMasuk.objects.filter(bank_penerima=bank):
+                row = [
+                    row_num - 2,
+                    None,  # Kosongi kolom NO CEK
+                    None,  # Kosongi kolom PENGELUARAN
+                    dana.uraian,
+                    dana.total_dana,
+                ]
+                ws.append(row)
+                if dana.total_dana:
+                    total_dana += dana.total_dana
+                row_num += 1
+
+            total = total_dana - total_cek
+            ws.append(["", "Total Cek", total_cek, "Total Dana Masuk", total_dana])
+            ws.append(["", "SELISIH", total])
+
+        # Mengatur lebar kolom secara otomatis
+        for column in ws.columns:
+            max_length = 0
+            column = get_column_letter(column[0].column)  # Get the column name
+            for cell in ws[column]:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(cell.value)
+                except:
+                    pass
+            adjusted_width = (max_length + 2)
+            ws.column_dimensions[column].width = adjusted_width
+
+        # Mengatur tinggi baris secara otomatis
+        for row in ws.iter_rows():
+            for cell in row:
+                ws.row_dimensions[cell.row].height = 14
+
+        # Simpan buku kerja Excel ke HttpResponse
+        wb.save(response)
+
+        return response
+
+    export_as_excel.short_description = "Export selected as Excel"
 
 
 class AjuanInLineUnitAjuan(admin.TabularInline):
