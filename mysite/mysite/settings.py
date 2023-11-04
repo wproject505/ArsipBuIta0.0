@@ -112,13 +112,20 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+# LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'id-ID'  # Mengatur kode bahasa dan regional ke 'id-ID' untuk Indonesia
 
-TIME_ZONE = 'UTC'
+# TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Jakarta'  # Mengatur zona waktu ke 'Asia/Jakarta'
 
-USE_I18N = True
+# USE_I18N = True
+USE_I18N = True  # Mengaktifkan penggunaan format numerik berdasarkan regional
 
-USE_TZ = True
+# USE_TZ = True
+USE_TZ = False  # Nonaktifkan zona waktu jika tidak diperlukan
+
+USE_L10N = True  # Mengaktifkan format mata uang dan tanggal berdasarkan regional
+
 
 
 # Static files (CSS, JavaScript, Images)
@@ -134,3 +141,7 @@ STATICFILES_DIRS = [
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# settings.py
+
+
