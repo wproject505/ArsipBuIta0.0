@@ -829,7 +829,13 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
         return super().changelist_view(request, extra_context=extra_context)
 
     def get_jumlah(self, obj):
-        return babel.numbers.format_currency(obj.jumlah, 'IDR', locale='id_ID')
+        try:
+            jumlah_decimal = decimal.Decimal(str(obj.jumlah))
+            formatted_jumlah = format_currency(jumlah_decimal, 'IDR', locale='id_ID')
+            return formatted_jumlah
+        except (ValueError, decimal.InvalidOperation):
+            return "-"
+
     get_jumlah.short_description = 'Jumlah'
 
     def update_jumlah_RPC(self, request, queryset):

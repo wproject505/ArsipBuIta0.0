@@ -70,7 +70,7 @@ class RekapPencairanCek(models.Model):
         if not self.no_RPC:
             last_id = RekapPencairanCek.objects.all().order_by('-pk').first()
             if last_id:
-                no_RPC = f'RPC{str(last_id.pk + 392).zfill(5)}'
+                no_RPC = f'RPC{str(last_id.pk + 383).zfill(5)}'
             else:
                 no_RPC = 'RPC00001'
             self.no_RPC = no_RPC
