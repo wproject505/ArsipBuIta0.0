@@ -621,7 +621,15 @@ class CekAdmin(admin.ModelAdmin):
         return qs.filter(total_cek=0)
 
     def get_total_cek(self, obj):
-        return babel.numbers.format_currency(obj.total_cek, 'IDR', locale='id_ID')
+        try:
+            total_cek_decimal = decimal.Decimal(str(obj.total_cek))
+            formatted_total_cek = format_currency(total_cek_decimal, 'IDR', locale='id_ID')
+            return formatted_total_cek
+        except (ValueError, decimal.InvalidOperation):
+            return "-"
+
+    get_total_cek.short_description = 'Jumlah Cek'
+
     def get_form(self, request, obj=None, **kwargs):
         request._obj_ = obj
         return super(CekAdmin, self).get_form(request, obj, **kwargs)
@@ -813,7 +821,6 @@ class RekapPencairanCekAdmin(admin.ModelAdmin):
             Q(ajuan_terkait__total_ajuan__icontains=search_term)
         )
         cek_results = cek_results.values_list('RPC__id', flat=True)  # Ambil ID yang sesuai
-
         # Gabungkan hasil pencarian dari model saat ini dan model Cek
         results |= queryset.filter(id__in=cek_results)
 
