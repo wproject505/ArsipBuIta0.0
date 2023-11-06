@@ -657,6 +657,9 @@ class CekAdmin(admin.ModelAdmin):
     def export_as_pdf(self, request, queryset):
         response = HttpResponse(content_type='application/pdf')
         response['Content-Disposition'] = 'attachment; filename="Cek.pdf"'
+        def wrap_text_by_words(text, limit=7):
+            words = text.split()
+            return '\n'.join([' '.join(words[i:i + limit]) for i in range(0, len(words), limit)])
 
         doc = SimpleDocTemplate(response, pagesize=landscape(letter))
         elements = []
@@ -687,7 +690,7 @@ class CekAdmin(admin.ModelAdmin):
                 cek.tanggal,
                 cek.no_cek,
                 cek.nomer_bank_tertarik,
-                ajuans,
+                wrap_text_by_words(ajuans, 3),
                 cek.RPC,
                 formatted_total_cek,  # Total Ajuan
 
