@@ -80,10 +80,9 @@ class DanaMasukAdmin(admin.ModelAdmin):
 
     export_to_excel.short_description = 'Export to Excel'
 
-
     def export_as_pdf(self, request, queryset):
         response = HttpResponse(content_type='application/pdf')
-        response['Content-Disposition'] = 'attachment; filename="Dana Masuk.pdf"'
+        response['Content-Disposition'] = 'attachment; filename="Dana_Masuk.pdf"'
 
         doc = SimpleDocTemplate(response, pagesize=landscape(A4))
         elements = []
@@ -93,14 +92,14 @@ class DanaMasukAdmin(admin.ModelAdmin):
         title = Paragraph('Dana Masuk', style=title_style)
         elements.append(title)
         data = []
-        data.append(['No.','Uraian', 'Waktu Masuk', 'Total Dana'])
+        data.append(['No.', 'Uraian', 'Waktu Masuk', 'Total Dana'])
         total = Decimal(0)
         row_num = 1
         for dana_masuk in queryset:
             total_ajuan = Decimal(dana_masuk.total_dana)
             row = [
                 row_num,
-                dana_masuk.uraian,
+                Paragraph(dana_masuk.uraian, ('Normal', {})),
                 dana_masuk.waktu_masuk,
                 format_currency(dana_masuk.total_dana, 'IDR', locale='id_ID'),
             ]
@@ -110,15 +109,15 @@ class DanaMasukAdmin(admin.ModelAdmin):
             # Add total_ajuan to total
             total += total_ajuan
 
-            # Add row for total_ajuan
-        data.append(['Total', '', '','', format_currency(total, 'IDR', locale='id_ID')])
+        # Add row for total_ajuan
+        data.append(['Total', '', '', '', format_currency(total, 'IDR', locale='id_ID')])
 
-        table = Table(data, colWidths=[70, 200, 150, 150,])
+        table = Table(data, colWidths=[70, 200, 150, 150])
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('ALIGN', (1, 1), (1, -2), 'LEFT'),  # Set "NAMA KEGIATAN" in the second row to align left
+            ('ALIGN', (1, 1), (1, -2), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 10),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
@@ -128,7 +127,8 @@ class DanaMasukAdmin(admin.ModelAdmin):
             ('FONTSIZE', (0, 1), (-1, -1), 9),
             ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('WORDWRAP', (1, 0), (-1, -1), 100),
+            # Remove or adjust this line based on your specific needs
+            ('WORDWRAP', (1, 1), (1, -1), 100),
         ]))
 
         elements.append(table)
@@ -1134,7 +1134,7 @@ class BankTertarikAdmin(admin.ModelAdmin):
             total_cek.append(cek.total_cek)
 
         # Menghitung total
-        total = sum(total_cek)
+        total = sum(filter(None, total_cek), Decimal('0.0'))
         self.total_cek_self = total
 
         # Mengonversi total ke format Rupiah

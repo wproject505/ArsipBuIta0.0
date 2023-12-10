@@ -20,8 +20,9 @@ class BankTertarik(models.Model):
         verbose_name_plural = 'Bank'
 
 class DanaMasuk(models.Model):
+    nomer_dana_masuk = models.CharField(max_length=20, null=True, blank=True)
     waktu_masuk = models.DateField(null=True)
-    uraian = models.CharField(null=False, max_length=50)
+    uraian = models.TextField(null=False, max_length=50)
     bank_penerima = models.ForeignKey(BankTertarik, blank=True, null=True,on_delete=models.SET_NULL)
     total_dana = models.DecimalField(max_digits=20, decimal_places=0)
     def __str__(self):
@@ -29,6 +30,16 @@ class DanaMasuk(models.Model):
 
     class Meta:
         verbose_name_plural = 'Dana Masuk'
+
+    def save(self, *args, **kwargs):
+        if not self.nomer_dana_masuk or self.nomer_dana_masuk == '-':
+            id_ndm = self.pk
+            if id_ndm is None or id_ndm == '-':
+                id_ndm = SomeLogicToGenerateID()  # Ganti dengan logika untuk menghasilkan ID jika diperlukan
+            ndm = str("DM" + str(id_ndm)).zfill(4)
+            self.nomer_dana_masuk = ndm
+
+        super().save(*args, **kwargs)
 
 
 class RekapAjuanPengambilanTabungan(models.Model):
